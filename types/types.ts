@@ -1,0 +1,20 @@
+export enum UserRole {
+  ADMIN = "ADMIN",
+  ARTIST = "ARTIST",
+  RECRUITER = "RECRUITER"
+}
+
+export enum UserStatus {
+  ACTIVE = "ACTIVE",
+  INACTIVE = "INACTIVE",
+  BANNED = "BANNED",
+  SUSPENDED = "SUSPENDED"
+}
+
+export enum AccountStatus {
+  ACTIVE = "ACTIVE",
+  INACTIVE = "INACTIVE",
+  SUSPENDED = "SUSPENDED",
+  BANNED = "BANNED",
+  PENDING_VERIFICATION = "PENDING_VERIFICATION"
+}
