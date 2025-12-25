@@ -17,69 +17,176 @@ import { bookmarksService } from '@/services/bookmarksService'
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog'
 
 
-type JobCardProps = (any)[0] & {
-  id?: number
+type JobCardProps = {
+  id: number
+  title: string
+  company?: string
+  location?: string
+  isRemote?: boolean
+  jobType?: string
+  experienceLevel?: string
+  budgetMin?: number
+  budgetMax?: number
+  currency?: string
+  applicationDeadline?: string
+  isUrgent?: boolean
+  skills?: string[]
+  postedDate?: string
+  applicantsCount?: number
   onApply?: (job: { id?: number; title: string }) => void
   onBookmark?: (jobId?: number) => void
   bookmarking?: boolean
+  isBookmarked?: boolean
 }
 
 const JobCard: React.FC<JobCardProps> = ({
-  icon,
+  id,
   title,
   company,
   location,
-  pay,
-  color,
-  id,
+  isRemote,
+  jobType,
+  experienceLevel,
+  budgetMin,
+  budgetMax,
+  currency,
+  applicationDeadline,
+  isUrgent,
+  skills,
+  postedDate,
+  applicantsCount,
   onApply,
   onBookmark,
   bookmarking,
-}) => (
-  <div className='bg-white rounded-2xl shadow-lg p-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1 transition-all duration-300'>
-    <div>
-      <div className='flex items-start justify-between'>
-        <div
-          className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
-          <Icon name={icon as any} size={24} />
-        </div>
-        <span className='text-xs font-semibold bg-amber-100 text-amber-800 py-1 px-3 rounded-full'>
-          Full-Time
-        </span>
-      </div>
-      <h3 className='text-xl font-bold mt-4'>{title}</h3>
-      <p className='text-gray-500 font-medium'>{company}</p>
-    </div>
-    <div className='mt-6'>
-      <div className='flex items-center text-gray-600 text-sm gap-2'>
-        <Icon name='MapPin' size={16} />
-        <span>{location}</span>
-      </div>
-      <div className='flex items-center text-gray-600 text-sm gap-2 mt-2'>
-        <Icon name='IndianRupee' size={16} />
-        <span>{pay}</span>
-      </div>
-      <div className='flex gap-2 mt-4'>
-        <button
-          onClick={() => onBookmark && onBookmark(id)}
-          disabled={!!bookmarking}
-          className='flex-1 bg-amber-50 text-amber-800 font-semibold text-sm py-2 px-3 rounded-xl hover:bg-amber-100 transition-all'
-        >
-          <span className='inline-flex items-center justify-center gap-2'>
-            <Icon name='Bookmark' size={16} />
-            {bookmarking ? 'Saving...' : 'Bookmark'}
+  isBookmarked
+}) => {
+  const formatSalary = () => {
+    if ((budgetMin === undefined || budgetMin === null) && (budgetMax === undefined || budgetMax === null)) return 'Salary not disclosed'
+    const curr = currency || '$'
+    if (budgetMin != null && budgetMax != null) {
+      return `${curr}${Number(budgetMin).toLocaleString()} - ${curr}${Number(budgetMax).toLocaleString()}`
+    }
+    const val = budgetMin ?? budgetMax
+    return `${curr}${Number(val).toLocaleString()}`
+  }
+
+  const formatType = (type?: string) => {
+    return type ? type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) : 'Full Time'
+  }
+
+  const formatExp = (exp?: string) => {
+    return exp ? exp.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) : ''
+  }
+
+  const daysLeft = applicationDeadline ? Math.ceil((new Date(applicationDeadline).getTime() - new Date().getTime()) / (1000 * 3600 * 24)) : null
+  const isExpired = daysLeft !== null && daysLeft < 0
+
+  return (
+    <div className='bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between hover:shadow-lg transition-all duration-300 group h-full relative overflow-hidden'>
+      {isUrgent && (
+        <div className="absolute top-0 right-0">
+          <span className="bg-red-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-sm uppercase tracking-wider">
+            Urgent
           </span>
-        </button>
+        </div>
+      )}
+
+      <div>
+        <div className='flex items-start justify-between mb-3'>
+          <div className="flex gap-3">
+            <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400">
+              <Icon name="Briefcase" size={20} />
+            </div>
+            <div>
+              <h3 className='text-lg font-bold text-gray-900 leading-tight group-hover:text-primary transition-colors line-clamp-2'>
+                {title}
+              </h3>
+              {company && <p className='text-sm text-gray-500 font-medium mt-0.5'>{company}</p>}
+            </div>
+          </div>
+          {!isUrgent && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onBookmark && onBookmark(id); }}
+              className={`text-gray-300 hover:text-amber-500 transition-colors ${isBookmarked ? 'text-amber-500' : ''}`}
+            >
+              <Icon name="Bookmark" size={20} fill={isBookmarked ? "currentColor" : "none"} />
+            </button>
+          )}
+        </div>
+
+        <div className='flex flex-wrap gap-2 mb-4'>
+          <span className='inline-flex items-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium'>
+            {formatType(jobType)}
+          </span>
+          {experienceLevel && (
+            <span className='inline-flex items-center px-2 py-1 rounded-md bg-purple-50 text-purple-700 text-xs font-medium'>
+              {formatExp(experienceLevel)}
+            </span>
+          )}
+          {isUrgent && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onBookmark && onBookmark(id); }}
+              className={`ml-auto text-gray-300 hover:text-amber-500 transition-colors ${isBookmarked ? 'text-amber-500' : ''}`}
+            >
+              <Icon name="Bookmark" size={18} fill={isBookmarked ? "currentColor" : "none"} />
+            </button>
+          )}
+        </div>
+
+        <div className="space-y-2 mb-4">
+          <div className='flex items-center text-gray-500 text-xs gap-2'>
+            <Icon name={isRemote ? 'Globe' : 'MapPin'} size={14} />
+            <span>{isRemote ? 'Remote' : (location || 'Location varies')}</span>
+          </div>
+          <div className='flex items-center text-gray-600 text-xs font-medium gap-2'>
+            <Icon name='Banknote' size={14} />
+            <span>{formatSalary()}</span>
+          </div>
+          {applicationDeadline && !isExpired && (
+            <div className={`flex items-center text-xs gap-2 ${daysLeft && daysLeft <= 3 ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
+              <Icon name='Clock' size={14} />
+              <span>{daysLeft} days left to apply</span>
+            </div>
+          )}
+        </div>
+
+        {skills && skills.length > 0 && (
+          <div className="mb-4">
+            <div className="flex flex-wrap gap-1.5">
+              {skills.slice(0, 3).map((skill, i) => (
+                <span key={i} className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                  {skill}
+                </span>
+              ))}
+              {skills.length > 3 && (
+                <span className="text-[10px] text-gray-400 px-1 py-0.5">
+                  +{skills.length - 3}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className='flex flex-col gap-3 mt-2 border-t border-gray-100 pt-4'>
+        <div className="flex justify-between items-center text-xs text-gray-400 px-1">
+          <span>{postedDate ? new Date(postedDate).toLocaleDateString() : 'Recently'}</span>
+          {applicantsCount !== undefined && <span>{applicantsCount} applicants</span>}
+        </div>
         <button
           onClick={() => onApply && onApply({ id, title })}
-          className='flex-1 bg-gradient-to-r from-primary to-amber-500 text-white font-semibold text-sm py-2 px-3 rounded-xl shadow-md hover:shadow-lg transition-all'
+          disabled={isExpired}
+          className={`w-full font-semibold text-sm py-2.5 px-3 rounded-xl shadow-sm transition-all ${isExpired
+            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            : 'bg-primary text-white hover:bg-primary-hover hover:shadow-md'
+            }`}
         >
-          Apply Now
+          {isExpired ? 'Applications Closed' : 'View Details & Apply'}
         </button>
       </div>
     </div>
-  </div>
-)
+  )
+}
 
 const FilterButton: React.FC<{ label: string; icon: any }> = ({
   label,
@@ -93,7 +200,7 @@ const FilterButton: React.FC<{ label: string; icon: any }> = ({
 )
 
 const Jobs: React.FC = () => {
-  const [uiJobs, setUiJobs] = useState<any>([])
+  const [uiJobs, setUiJobs] = useState<JobCardProps[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -105,9 +212,9 @@ const Jobs: React.FC = () => {
   const [total, setTotal] = useState(0)
   const [applyOpen, setApplyOpen] = useState(false)
   const [selectedJob, setSelectedJob] = useState<{ id?: number; title?: string } | null>(null)
-const [bookmarkLoadingId, setBookmarkLoadingId] = useState<number | null>(null)
-const [confirmBookmarkOpen, setConfirmBookmarkOpen] = useState(false)
-const [confirmBookmarkJobId, setConfirmBookmarkJobId] = useState<number | null>(null)
+  const [bookmarkLoadingId, setBookmarkLoadingId] = useState<number | null>(null)
+  const [confirmBookmarkOpen, setConfirmBookmarkOpen] = useState(false)
+  const [confirmBookmarkJobId, setConfirmBookmarkJobId] = useState<number | null>(null)
 
   const jobTypes: JobType[] = useMemo(
     () => ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'FREELANCE', 'INTERNSHIP', 'PROJECT_BASED'],
@@ -132,15 +239,41 @@ const [confirmBookmarkJobId, setConfirmBookmarkJobId] = useState<number | null>(
           jobType: jobType || undefined,
           experienceLevel: experienceLevel || undefined,
         })
-        const mapped = items.map(j => ({
-          icon: 'Briefcase',
-          title: j.title ?? 'Untitled Role',
-          company: (j.company as string) ?? '—',
-          location: (j.location as string) ?? '—',
-          pay: (j.pay as string) ?? '—',
-          color: 'bg-amber-100 text-amber-800',
-          id: j.id,
-        })) as any
+
+        const mapped = items.map(j => {
+          let skills: string[] = []
+          if (Array.isArray(j.skillsRequired)) {
+            skills = j.skillsRequired
+          } else if (typeof j.skillsRequired === 'string') {
+            try {
+              // Try JSON parse first
+              const parsed = JSON.parse(j.skillsRequired)
+              if (Array.isArray(parsed)) skills = parsed
+              else skills = (j.skillsRequired as string).split(',').map(s => s.trim())
+            } catch {
+              skills = (j.skillsRequired as string).split(',').map(s => s.trim())
+            }
+          }
+
+          return {
+            id: j.id,
+            title: j.title ?? 'Untitled Role',
+            company: (j.companyName as string) || (j.company as string) || 'Top Company', // Fallbacks
+            location: (j.location as string),
+            isRemote: j.isRemote,
+            jobType: j.jobType,
+            experienceLevel: j.experienceLevel,
+            budgetMin: j.budgetMin,
+            budgetMax: j.budgetMax,
+            currency: j.currency,
+            applicationDeadline: j.applicationDeadline,
+            isUrgent: j.isUrgent,
+            skills: skills.filter(Boolean),
+            postedDate: j.createdAt || j.publishedAt,
+            applicantsCount: j.applicationsCount || j.applicants || 0,
+            isBookmarked: j.isBookmarked
+          }
+        })
         setUiJobs(mapped)
         setTotal(t ?? mapped.length)
       } catch (err: any) {
@@ -154,36 +287,36 @@ const [confirmBookmarkJobId, setConfirmBookmarkJobId] = useState<number | null>(
 
   const totalPages = Math.max(1, Math.ceil((total || 0) / pageSize))
 
-const askBookmark = (jobId?: number) => {
-  if (!jobId) return
-  setConfirmBookmarkJobId(jobId)
-  setConfirmBookmarkOpen(true)
-}
-
-const handleBookmark = async (jobId?: number) => {
-  if (!jobId) return
-  try {
-    setBookmarkLoadingId(jobId)
-    await bookmarksService.bookmarkJob(jobId, {})
-  } catch (err) {
-    console.error('Failed to bookmark job', err)
-  } finally {
-    setBookmarkLoadingId(null)
+  const askBookmark = (jobId?: number) => {
+    if (!jobId) return
+    setConfirmBookmarkJobId(jobId)
+    setConfirmBookmarkOpen(true)
   }
-}
 
-const pageNumbers = useMemo(() => {
-  const nums: (number | '...')[] = []
-  const range = 2
-  let start = Math.max(2, currentPage - range)
-  let end = Math.min(totalPages - 1, currentPage + range)
-  nums.push(1)
-  if (start > 2) nums.push('...')
-  for (let i = start; i <= end; i++) nums.push(i)
-  if (end < totalPages - 1) nums.push('...')
-  if (totalPages > 1) nums.push(totalPages)
-  return nums
-}, [currentPage, totalPages])
+  const handleBookmark = async (jobId?: number) => {
+    if (!jobId) return
+    try {
+      setBookmarkLoadingId(jobId)
+      await bookmarksService.bookmarkJob(jobId, {})
+    } catch (err) {
+      console.error('Failed to bookmark job', err)
+    } finally {
+      setBookmarkLoadingId(null)
+    }
+  }
+
+  const pageNumbers = useMemo(() => {
+    const nums: (number | '...')[] = []
+    const range = 2
+    let start = Math.max(2, currentPage - range)
+    let end = Math.min(totalPages - 1, currentPage + range)
+    nums.push(1)
+    if (start > 2) nums.push('...')
+    for (let i = start; i <= end; i++) nums.push(i)
+    if (end < totalPages - 1) nums.push('...')
+    if (totalPages > 1) nums.push(totalPages)
+    return nums
+  }, [currentPage, totalPages])
 
   return (
     <div className='space-y-6'>
@@ -351,15 +484,22 @@ const pageNumbers = useMemo(() => {
       </div>
 
       <AlertDialog open={confirmBookmarkOpen} onOpenChange={setConfirmBookmarkOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className='bg-white rounded-2xl border-0 shadow-2xl max-w-md'>
           <AlertDialogHeader>
-            <AlertDialogTitle>Save this job?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className='text-2xl font-bold text-gray-900'>
+              Save this job?
+            </AlertDialogTitle>
+            <AlertDialogDescription className='text-base text-gray-600 mt-2'>
               This will add the job to your bookmarks.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={bookmarkLoadingId !== null}>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className='gap-3 mt-6'>
+            <AlertDialogCancel
+              disabled={bookmarkLoadingId !== null}
+              className='bg-gray-100 hover:bg-gray-200 text-gray-800 border-0 rounded-xl px-6 py-2.5 font-semibold transition-colors'
+            >
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
                 if (confirmBookmarkJobId) {
@@ -367,10 +507,10 @@ const pageNumbers = useMemo(() => {
                 }
                 setConfirmBookmarkOpen(false)
               }}
-              className='bg-amber-600 hover:bg-amber-700 text-white text-sm h-9 px-3'
+              className='bg-amber-600 hover:bg-amber-700 text-white rounded-xl px-6 py-2.5 font-semibold transition-colors border-0 shadow-md'
               disabled={bookmarkLoadingId !== null}
             >
-              Confirm
+              {bookmarkLoadingId !== null ? 'Saving...' : 'Confirm'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

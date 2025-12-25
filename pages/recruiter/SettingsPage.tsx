@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import { Card } from '../../components/Card'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
+import api from '../../services/apiClient'
 
 interface InputFieldProps {
   label: string
@@ -9,6 +11,7 @@ interface InputFieldProps {
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   type?: string
   autoComplete?: string
+  error?: string
 }
 
 const InputField: React.FC<InputFieldProps> = ({
@@ -18,6 +21,7 @@ const InputField: React.FC<InputFieldProps> = ({
   onChange,
   type = 'text',
   autoComplete = 'off',
+  error,
 }) => (
   <div>
     <label htmlFor={id} className='block text-sm font-medium text-gray-700'>
@@ -30,12 +34,23 @@ const InputField: React.FC<InputFieldProps> = ({
       value={value}
       onChange={onChange}
       autoComplete={autoComplete}
-      className='mt-1 block w-full rounded-lg border-gray-300 bg-white shadow-sm transition placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 sm:text-sm px-3 py-2.5'
+      className={`mt-1 block w-full rounded-lg border bg-white shadow-sm transition placeholder:text-gray-400 focus:ring-2 sm:text-sm px-3 py-2.5 ${error
+        ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
+        : 'border-gray-300 focus:border-primary focus:ring-primary/20'
+        }`}
     />
+    {error && <p className='mt-1 text-sm text-red-600'>{error}</p>}
   </div>
 )
 
-const ToggleSwitch = ({ label, enabled, setEnabled, description }) => (
+interface ToggleSwitchProps {
+  label: string
+  enabled: boolean
+  setEnabled: (val: boolean) => void
+  description: string
+}
+
+const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ label, enabled, setEnabled, description }) => (
   <div className='flex items-center justify-between'>
     <div>
       <span className='text-sm font-medium text-gray-900'>{label}</span>
@@ -43,15 +58,13 @@ const ToggleSwitch = ({ label, enabled, setEnabled, description }) => (
     </div>
     <button
       type='button'
-      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
-        enabled ? 'bg-primary' : 'bg-gray-200'
-      }`}
+      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${enabled ? 'bg-primary' : 'bg-gray-200'
+        }`}
       onClick={() => setEnabled(!enabled)}>
       <span
         aria-hidden='true'
-        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-          enabled ? 'translate-x-5' : 'translate-x-0'
-        }`}
+        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${enabled ? 'translate-x-5' : 'translate-x-0'
+          }`}
       />
     </button>
   </div>
@@ -65,8 +78,87 @@ export const SettingsPage = () => {
     weeklySummary: false,
   })
 
+  // Password state
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  })
+  const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({})
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setPasswordForm(prev => ({ ...prev, [name]: value }))
+    // Clear error when user starts typing
+    if (passwordErrors[name]) {
+      setPasswordErrors(prev => ({ ...prev, [name]: '' }))
+    }
+  }
+
+  const validatePasswordForm = (): boolean => {
+    const errors: Record<string, string> = {}
+
+    if (!passwordForm.currentPassword) {
+      errors.currentPassword = 'Current password is required'
+    }
+
+    if (!passwordForm.newPassword) {
+      errors.newPassword = 'New password is required'
+    } else if (passwordForm.newPassword.length < 8) {
+      errors.newPassword = 'Password must be at least 8 characters'
+    }
+
+    if (!passwordForm.confirmPassword) {
+      errors.confirmPassword = 'Please confirm your new password'
+    } else if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match'
+    }
+
+    if (passwordForm.currentPassword === passwordForm.newPassword && passwordForm.newPassword) {
+      errors.newPassword = 'New password must be different from current password'
+    }
+
+    setPasswordErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const handleUpdatePassword = async () => {
+    if (!validatePasswordForm()) return
+
+    setIsChangingPassword(true)
+    try {
+      const response = await api.post('/users/change-password', {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+        confirmPassword: passwordForm.confirmPassword,
+      })
+
+      if (response.data?.success) {
+        toast.success(response.data.message || 'Password changed successfully')
+        setPasswordForm({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        })
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Failed to change password'
+      toast.error(errorMessage)
+
+      // Set specific field errors based on API response
+      if (errorMessage.toLowerCase().includes('current password')) {
+        setPasswordErrors(prev => ({ ...prev, currentPassword: errorMessage }))
+      } else if (errorMessage.toLowerCase().includes('do not match')) {
+        setPasswordErrors(prev => ({ ...prev, confirmPassword: errorMessage }))
+      }
+    } finally {
+      setIsChangingPassword(false)
+    }
+  }
+
   const handleSave = () => {
-    alert('Settings saved successfully!')
+    toast.success('Settings saved successfully!')
   }
 
   const handleCancel = () => {
@@ -91,30 +183,36 @@ export const SettingsPage = () => {
               label='Current Password'
               id='currentPassword'
               type='password'
-              value=''
-              onChange={() => {}}
+              value={passwordForm.currentPassword}
+              onChange={handlePasswordChange}
               autoComplete='current-password'
+              error={passwordErrors.currentPassword}
             />
             <div></div>
             <InputField
               label='New Password'
               id='newPassword'
               type='password'
-              value=''
-              onChange={() => {}}
+              value={passwordForm.newPassword}
+              onChange={handlePasswordChange}
               autoComplete='new-password'
+              error={passwordErrors.newPassword}
             />
             <InputField
               label='Confirm New Password'
               id='confirmPassword'
               type='password'
-              value=''
-              onChange={() => {}}
+              value={passwordForm.confirmPassword}
+              onChange={handlePasswordChange}
               autoComplete='new-password'
+              error={passwordErrors.confirmPassword}
             />
             <div className='sm:col-span-2 text-right'>
-              <button className='inline-flex items-center px-4 py-2 border border-transparent text-sm font-semibold rounded-lg shadow-sm text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary'>
-                Update Password
+              <button
+                onClick={handleUpdatePassword}
+                disabled={isChangingPassword}
+                className='inline-flex items-center px-4 py-2 border border-transparent text-sm font-semibold rounded-lg shadow-sm text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed'>
+                {isChangingPassword ? 'Updating...' : 'Update Password'}
               </button>
             </div>
           </div>

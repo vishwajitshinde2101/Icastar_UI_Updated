@@ -5,16 +5,31 @@ import { Pagination } from '../../components/Pagination'
 import { SearchIcon } from '../../components/icons/IconComponents'
 import { useNavigate } from 'react-router-dom'
 
-// Server returns ISO dates; format for display
-const formatDate = (iso?: string) =>
-  iso ? new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : '—'
+// Format date to readable format: "22 Dec 2025, 12:36 PM"
+const formatDate = (iso?: string) => {
+  if (!iso) return '—'
+  try {
+    const date = new Date(iso)
+    return date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    }) + ', ' + date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    })
+  } catch {
+    return '—'
+  }
+}
 
 export const PastHiresPage = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [jobFilter, setJobFilter] = useState('All')
-  const ITEMS_PER_PAGE = 5
+  const ITEMS_PER_PAGE = 20
   const [hires, setHires] = useState<RecentHireDto[]>([])
   const [totalElements, setTotalElements] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
@@ -39,7 +54,7 @@ export const PastHiresPage = () => {
 
       return matchesSearch && matchesJob
     })
-  }, [searchTerm, jobFilter])
+  }, [hires, searchTerm, jobFilter])
 
   useEffect(() => {
     setCurrentPage(1)
@@ -51,10 +66,13 @@ export const PastHiresPage = () => {
         setLoading(true)
         setError(null)
         const res = await getHires({ page: currentPage - 1, size: ITEMS_PER_PAGE })
+        console.log('Hires API Response:', res)
+        console.log('Hires items:', res.items)
         setHires(res.items)
         setTotalElements(res.totalElements)
         setTotalPages(res.totalPages)
       } catch (e: any) {
+        console.error('Error fetching hires:', e)
         setError(e?.message || 'Failed to load hires')
       } finally {
         setLoading(false)
@@ -77,7 +95,10 @@ export const PastHiresPage = () => {
 
   return (
     <div>
-      <h2 className='text-3xl font-bold text-gray-900 mb-6'>Past Hires</h2>
+      <div className='mb-6'>
+        <h2 className='text-3xl font-bold text-gray-900'>Past Hires</h2>
+        <p className='text-gray-600 mt-2'>All candidates you have successfully hired</p>
+      </div>
 
       <Card className='mb-6'>
         <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
@@ -142,12 +163,32 @@ export const PastHiresPage = () => {
                 <th
                   scope='col'
                   className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                  Hired For
+                  Job Title
                 </th>
                 <th
                   scope='col'
                   className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                  Date Hired
+                  Hired On
+                </th>
+                <th
+                  scope='col'
+                  className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  Status
+                </th>
+                <th
+                  scope='col'
+                  className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  Salary
+                </th>
+                <th
+                  scope='col'
+                  className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  Rating
+                </th>
+                <th
+                  scope='col'
+                  className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  Feedback
                 </th>
                 <th scope='col' className='relative px-6 py-3'>
                   <span className='sr-only'>Actions</span>
@@ -157,31 +198,39 @@ export const PastHiresPage = () => {
             <tbody className='bg-white divide-y divide-gray-200'>
               {loading ? (
                 <tr>
-                  <td colSpan={4} className='text-center py-8 px-6 text-sm text-gray-500'>
-                    Loading hires...
+                  <td colSpan={8} className='text-center py-12 px-6'>
+                    <div className='flex flex-col items-center justify-center'>
+                      <div className='animate-spin rounded-full h-10 w-10 border-b-2 border-amber-600 mb-3'></div>
+                      <p className='text-sm text-gray-500'>Loading your past hires...</p>
+                    </div>
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={4} className='text-center py-8 px-6 text-sm text-red-600'>
-                    {error}
+                  <td colSpan={8} className='text-center py-12 px-6'>
+                    <div className='flex flex-col items-center justify-center'>
+                      <svg className='h-12 w-12 text-red-400 mb-3' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' />
+                      </svg>
+                      <p className='text-sm font-medium text-red-600'>{error}</p>
+                    </div>
                   </td>
                 </tr>
               ) : currentHires.length > 0 ? (
                 currentHires.map(hire => (
-                  <tr key={hire.id} className='hover:bg-gray-50'>
+                  <tr key={hire.id} className='hover:bg-gray-50 transition-colors'>
                     <td className='px-6 py-4 whitespace-nowrap'>
                       <div className='flex items-center'>
-                        <div className='flex-shrink-0 h-11 w-11'>
-                          <div className='h-11 w-11 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs'>
-                            {hire.artistName?.charAt(0) || '?'}
+                        <div className='flex-shrink-0 h-10 w-10'>
+                          <div className='h-10 w-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-white font-semibold text-sm shadow-sm'>
+                            {hire.artistName?.charAt(0).toUpperCase() || '?'}
                           </div>
                         </div>
                         <div className='ml-4'>
                           <div className='text-sm font-semibold text-gray-900'>
                             {hire.artistName || 'Unknown Artist'}
                           </div>
-                          <div className='text-sm text-gray-500'>
+                          <div className='text-xs text-gray-500'>
                             {hire.artistEmail || '—'}
                           </div>
                         </div>
@@ -191,28 +240,78 @@ export const PastHiresPage = () => {
                       <div className='text-sm font-medium text-gray-900'>
                         {hire.jobTitle}
                       </div>
+                      {hire.contractType && (
+                        <div className='text-xs text-gray-500'>
+                          {hire.contractType}
+                        </div>
+                      )}
                     </td>
                     <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
                       {formatDate(hire.hiredAt)}
                     </td>
+                    <td className='px-6 py-4 whitespace-nowrap'>
+                      <span className='px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800'>
+                        HIRED
+                      </span>
+                      {hire.isCompleted && (
+                        <span className='ml-2 px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700'>
+                          Completed
+                        </span>
+                      )}
+                    </td>
+                    <td className='px-6 py-4 whitespace-nowrap'>
+                      <div className='text-sm font-medium text-gray-900'>
+                        {hire.agreedSalary
+                          ? `${hire.currency || '$'} ${hire.agreedSalary}`.trim()
+                          : '—'}
+                      </div>
+                    </td>
+                    <td className='px-6 py-4 whitespace-nowrap'>
+                      {hire.performanceRating ? (
+                        <div className='flex items-center gap-1'>
+                          <span className='text-amber-500 text-lg'>★</span>
+                          <span className='text-sm font-semibold text-gray-900'>
+                            {hire.performanceRating}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className='text-sm text-gray-400'>—</span>
+                      )}
+                    </td>
+                    <td className='px-6 py-4'>
+                      <div className='max-w-xs'>
+                        {hire.feedback ? (
+                          <p className='text-sm text-gray-600 line-clamp-2' title={hire.feedback}>
+                            {hire.feedback}
+                          </p>
+                        ) : (
+                          <span className='text-sm text-gray-400'>—</span>
+                        )}
+                      </div>
+                    </td>
                     <td className='px-6 py-4 whitespace-nowrap text-right text-sm font-medium'>
                       <button
                         onClick={() => handleViewDetails(hire)}
-                        className='px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors'>
-                        View Details
+                        className='inline-flex items-center px-3 py-1.5 border border-amber-300 rounded-lg text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors'>
+                        View
+                        <svg className='ml-1.5 h-4 w-4' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                          <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 5l7 7-7 7' />
+                        </svg>
                       </button>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className='text-center py-16 px-6'>
+                  <td colSpan={8} className='text-center py-16 px-6'>
                     <SearchIcon className='mx-auto h-12 w-12 text-gray-400' />
                     <h3 className='mt-2 text-lg font-medium text-gray-900'>
                       No Past Hires Found
                     </h3>
                     <p className='mt-1 text-sm text-gray-500'>
-                      Try adjusting your search or filter criteria.
+                      {searchTerm || jobFilter !== 'All'
+                        ? 'Try adjusting your search or filter criteria.'
+                        : 'You haven\'t hired any candidates yet.'}
                     </p>
                   </td>
                 </tr>

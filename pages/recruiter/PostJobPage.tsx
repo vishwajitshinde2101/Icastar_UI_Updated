@@ -11,6 +11,17 @@ import {
 import { Pagination } from '../../components/Pagination'
 import { useNavigate } from 'react-router-dom'
 import recruiterJobsService, { CreateJobInput } from '../../services/recruiterJobsService'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { toast } from 'react-toastify'
 
 const getStatusStyles = (status: Job['status']) => {
   switch (status) {
@@ -180,6 +191,9 @@ export const PostJobPage = () => {
   const [statusFilter, setStatusFilter] = useState<'All' | Job['status']>('All')
   const [typeFilter, setTypeFilter] = useState<'All' | Job['type']>('All')
   const [jobs, setJobs] = useState<Job[]>([])
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [jobToDelete, setJobToDelete] = useState<Job | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const navigate = useNavigate()
 
   const ITEMS_PER_PAGE = 5
@@ -216,6 +230,13 @@ export const PostJobPage = () => {
         DRAFT: 'Draft',
         CLOSED: 'Closed',
       }
+      const expMap: Record<string, string> = {
+        ENTRY_LEVEL: 'Entry Level',
+        MID_LEVEL: 'Mid Level',
+        SENIOR_LEVEL: 'Senior Level',
+        DIRECTOR: 'Director',
+        EXECUTIVE: 'Executive',
+      }
       const createdAtIso = dto.createdAt ?? new Date().toISOString()
       return {
         id: dto.id,
@@ -228,6 +249,16 @@ export const PostJobPage = () => {
         description: dto.description,
         skills: Array.isArray(dto.skillsRequired) ? dto.skillsRequired.join(', ') : undefined,
         boosted: false,
+        experienceLevel: expMap[dto.experienceLevel] ?? 'Entry Level',
+        isRemote: dto.isRemote,
+        location: dto.location,
+        requirements: dto.requirements,
+        budgetMin: dto.budgetMin,
+        budgetMax: dto.budgetMax,
+        currency: dto.currency,
+        durationDays: dto.durationDays,
+        applicationDeadline: dto.applicationDeadline,
+        isUrgent: dto.isUrgent,
       }
     }
 
@@ -282,19 +313,97 @@ export const PostJobPage = () => {
 
     try {
       if (jobData.id) {
-        // Local edit only (UI fields subset). Backend update can be added when edit flow expands.
+        // Prepare update payload
+        const skillsArray = (jobData.skills || '')
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean)
+
+        const toExpEnum = (e?: string): any => {
+          switch (e) {
+            case 'Mid Level': return 'MID_LEVEL';
+            case 'Senior Level': return 'SENIOR_LEVEL';
+            case 'Director': return 'DIRECTOR';
+            case 'Executive': return 'EXECUTIVE';
+            default: return 'ENTRY_LEVEL';
+          }
+        }
+
+        const payload: any = {
+          title: jobData.title,
+          description: jobData.description || '',
+          requirements: jobData.requirements,
+          jobType: toEnum(jobData.type),
+          experienceLevel: toExpEnum(jobData.experienceLevel),
+          budgetMin: jobData.budgetMin,
+          budgetMax: jobData.budgetMax,
+          currency: jobData.currency,
+          durationDays: jobData.durationDays,
+          location: jobData.location,
+          isRemote: jobData.isRemote,
+          isUrgent: jobData.isUrgent,
+          applicationDeadline: jobData.applicationDeadline,
+          skillsRequired: skillsArray,
+          status: 'ACTIVE' // Default status update if needed, but usually status is separate. 
+          // However based on prompt 'status': 'ACTIVE' is in required parameters. 
+          // We might want to keep existing status or default to ACTIVE if not set.
+          // Looking at prompt example: "status": "ACTIVE". 
+          // Let's use current job status from jobData if mapped back correctly, or 'ACTIVE'
+        }
+
+        // Map status
+        const statusMap: Record<string, string> = {
+          'Active': 'ACTIVE',
+          'Draft': 'DRAFT',
+          'Closed': 'CLOSED'
+        }
+        if (jobData.status && statusMap[jobData.status]) {
+          payload.status = statusMap[jobData.status]
+        }
+
+        // Optimistic update
+        const previousJobs = [...jobs]
         setJobs(jobs.map(j => (j.id === jobData.id ? { ...j, ...jobData } : j)))
+
+        try {
+          await recruiterJobsService.updateJob(jobData.id, payload)
+          toast.success('Job updated successfully')
+        } catch (error: any) {
+          console.error('Failed to update job:', error)
+          setJobs(previousJobs) // Revert
+          const errorMessage = error.response?.data?.message || 'Failed to update job'
+          toast.error(errorMessage)
+        }
       } else {
         const skillsArray = (jobData.skills || '')
           .split(',')
           .map(s => s.trim())
           .filter(Boolean)
+        const toExpEnum = (e?: string): any => {
+          switch (e) {
+            case 'Mid Level': return 'MID_LEVEL';
+            case 'Senior Level': return 'SENIOR_LEVEL';
+            case 'Director': return 'DIRECTOR';
+            case 'Executive': return 'EXECUTIVE';
+            default: return 'ENTRY_LEVEL';
+          }
+        }
+
         const payload: CreateJobInput = {
           title: jobData.title,
           description: jobData.description || '',
           jobType: toEnum(jobData.type),
-          experienceLevel: 'ENTRY_LEVEL',
+          experienceLevel: toExpEnum(jobData.experienceLevel),
           skillsRequired: skillsArray,
+          location: jobData.location,
+          isRemote: jobData.isRemote,
+          requirements: jobData.requirements,
+          budgetMin: jobData.budgetMin,
+          budgetMax: jobData.budgetMax,
+          currency: jobData.currency,
+          durationDays: jobData.durationDays,
+          applicationDeadline: jobData.applicationDeadline, // YYYY-MM-DD format from input=date
+          isUrgent: jobData.isUrgent,
         }
         const created = await recruiterJobsService.createJob(payload)
         const newJob: Job = {
@@ -321,13 +430,47 @@ export const PostJobPage = () => {
         createdDate: new Date().toISOString(),
         postedDate: 'Just now',
         boosted: false,
+        experienceLevel: jobData.experienceLevel,
+        isRemote: jobData.isRemote,
+        location: jobData.location,
+        requirements: jobData.requirements,
+        budgetMin: jobData.budgetMin,
+        budgetMax: jobData.budgetMax,
+        currency: jobData.currency,
+        durationDays: jobData.durationDays,
+        applicationDeadline: jobData.applicationDeadline,
+        isUrgent: jobData.isUrgent,
       }
       setJobs([newJob, ...jobs])
     }
   }
 
-  const handleStatusChange = (jobId: number, status: Job['status']) => {
+  const handleStatusChange = async (jobId: number, status: Job['status']) => {
+    // Map UI status to backend status
+    const statusMap: Record<Job['status'], 'ACTIVE' | 'DRAFT' | 'CLOSED'> = {
+      'Active': 'ACTIVE',
+      'Draft': 'DRAFT',
+      'Closed': 'CLOSED',
+    }
+
+    // Optimistically update UI
+    const previousJobs = [...jobs]
     setJobs(jobs.map(j => (j.id === jobId ? { ...j, status } : j)))
+
+    try {
+      await recruiterJobsService.changeJobStatus(jobId, {
+        status: statusMap[status],
+        reason: `Status changed to ${status}`,
+      })
+    } catch (error: any) {
+      // Revert on error
+      setJobs(previousJobs)
+      // Extract specific message if available
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update job status'
+      // Use toast instead of alert for better UX (assuming toast is available in scope)
+      toast.error(errorMessage)
+      console.error('Failed to change job status:', error)
+    }
   }
 
   const handleBoostJob = (jobId: number) => {
@@ -339,6 +482,30 @@ export const PostJobPage = () => {
     setSearchTerm('')
     setStatusFilter('All')
     setTypeFilter('All')
+  }
+
+  const handleOpenDeleteModal = (job: Job) => {
+    setJobToDelete(job)
+    setIsDeleteModalOpen(true)
+    setActiveDropdown(null)
+  }
+
+  const confirmDeleteJob = async () => {
+    if (!jobToDelete) return
+
+    setIsDeleting(true)
+    try {
+      await recruiterJobsService.deleteJob(jobToDelete.id)
+      setJobs(jobs.filter(j => j.id !== jobToDelete.id))
+      toast.success('Job deleted successfully')
+    } catch (error) {
+      console.error('Failed to delete job:', error)
+      toast.error('Unable to delete job. Please try again')
+    } finally {
+      setIsDeleting(false)
+      setIsDeleteModalOpen(false)
+      setJobToDelete(null)
+    }
   }
 
   useEffect(() => {
@@ -373,6 +540,29 @@ export const PostJobPage = () => {
         onBoost={handleBoostJob}
         jobToBoost={jobToBoost}
       />
+      <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this job?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the job "{jobToDelete?.title}" and remove all associated applications.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                confirmDeleteJob()
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600"
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div>
         <div className='flex justify-between items-center mb-6'>
           <h2 className='text-3xl font-bold text-gray-900'>My Jobs</h2>
@@ -554,15 +744,6 @@ export const PostJobPage = () => {
                                   Edit Job
                                 </button>
                                 <button
-                                  onClick={() => handleOpenBoostModal(job)}
-                                  disabled={
-                                    job.boosted || job.status === 'Closed'
-                                  }
-                                  className='block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed'
-                                  role='menuitem'>
-                                  {job.boosted ? 'Boosted' : 'Boost Job'}
-                                </button>
-                                <button
                                   onClick={() => handleViewApplicants(job)}
                                   disabled={
                                     job.status === 'Draft' ||
@@ -571,6 +752,12 @@ export const PostJobPage = () => {
                                   className='block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed'
                                   role='menuitem'>
                                   View Applicants
+                                </button>
+                                <button
+                                  onClick={() => handleOpenDeleteModal(job)}
+                                  className='block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50'
+                                  role='menuitem'>
+                                  Delete Job
                                 </button>
                               </div>
                             </div>

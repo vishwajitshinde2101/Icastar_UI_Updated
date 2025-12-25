@@ -27,7 +27,24 @@ export interface ArtistSuggestionDto {
   expectedSalaryMax?: number
   currency?: string
   workLocation?: string
+
   workSchedule?: string
+
+  profileCompletionPercentage?: number
+  isVerified?: boolean
+  recruiterId?: number
+}
+
+export interface AudienceMetricsDto {
+  totalViews: number
+  uniqueVisitors: number
+  profileClicks: number
+  appearanceInSearch: number
+  demographics: {
+    ageGroups: { [key: string]: number }
+    locations: { [key: string]: number }
+    gender: { [key: string]: number }
+  }
 }
 
 export interface BrowseArtistsParams {
@@ -61,6 +78,12 @@ const toArtist = (dto: ArtistSuggestionDto): Artist => ({
   skills: Array.isArray(dto.skills) ? dto.skills : [],
   email: dto.artistEmail,
   portfolioUrl: (dto.portfolioItems && dto.portfolioItems.length > 0) ? dto.portfolioItems[0] : undefined,
+  profileCompletionPercentage: dto.profileCompletionPercentage,
+  category: dto.artistCategory || dto.artistType || 'Artist',
+  location: dto.location || dto.workLocation || 'Unknown',
+  experienceYears: dto.experienceYears,
+  recruiterId: dto.recruiterId,
+  isVerified: dto.isVerified,
 })
 
 export async function browseArtists(params: BrowseArtistsParams): Promise<PagedArtistsResult> {
@@ -88,4 +111,11 @@ export async function getArtistSuggestions(params: Omit<BrowseArtistsParams, 'pa
     { params: { ...filters, limit } },
   )
   return (response.data.data || []).map(toArtist)
+}
+
+export async function getAudienceMetrics(artistId: number): Promise<AudienceMetricsDto> {
+  const response = await api.get<{ success: boolean; data: AudienceMetricsDto }>(
+    `/recruiter/artists/${artistId}/audience`
+  )
+  return response.data.data
 }

@@ -81,8 +81,15 @@ const Step2_ProfileForm: React.FC<ProfileFormProps> = ({
       // dateOfBirth (string, e.g. YYYY-MM-DD)
       payload.dateOfBirth = String(formData.dateOfBirth || '').trim()
 
+      // Mark onboarding as complete
+      payload.isOnboardingComplete = true
+
       const result = await onboardingService.submitOnboardingJson(payload)
       console.log('Onboarding successful:', result.message)
+
+      // Mark onboarding as complete in localStorage
+      localStorage.setItem('isOnboardingComplete', 'true')
+
       navigate('/dashboard')
     } catch (error) {
       console.error('Onboarding submission failed:', error)

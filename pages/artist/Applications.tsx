@@ -134,10 +134,10 @@ const Applications: React.FC = () => {
                   <td className='p-5 text-gray-700'>
                     {app.appliedAt
                       ? new Date(app.appliedAt).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                        })
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })
                       : '-'}
                   </td>
                   <td className='p-5'>

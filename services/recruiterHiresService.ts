@@ -53,13 +53,19 @@ export async function getHires(params: GetHiresParams = {}): Promise<PagedHiresR
     params: { page, size, ...filters },
   })
 
-  const data = response.data?.data ?? []
+  console.log('Raw API Response:', response.data)
+
+  // Extract data from response.data.data structure
+  const apiData = response.data?.data ?? {}
+  console.log('Extracted apiData:', apiData)
+  console.log('Hires array:', apiData.hires)
+
   return {
-    items: Array.isArray(data) ? data : [],
-    totalElements: response.data?.totalElements ?? 0,
-    totalPages: response.data?.totalPages ?? 0,
-    currentPage: response.data?.currentPage ?? 0,
-    size: response.data?.size ?? size,
+    items: Array.isArray(apiData.hires) ? apiData.hires : [],
+    totalElements: apiData.totalElements ?? 0,
+    totalPages: apiData.totalPages ?? 0,
+    currentPage: apiData.currentPage ?? 0,
+    size: apiData.size ?? size,
   }
 }
 

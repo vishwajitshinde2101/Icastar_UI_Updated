@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Card } from '../../components/Card'
 import { Applicant, Page } from '../../types'
 import {
@@ -10,6 +10,8 @@ import {
   CheckCircleIcon,
 } from '../../components/icons/IconComponents'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { recruiterApplicantsService } from '../../services/recruiterApplicantsService'
+import { toast } from 'react-toastify'
 
 const StatusBadge: React.FC<{ status: Applicant['status'] }> = ({ status }) => {
   const baseClasses =
@@ -26,20 +28,392 @@ const StatusBadge: React.FC<{ status: Applicant['status'] }> = ({ status }) => {
   )
 }
 
-const handleUpdateApplicantStatus = (
-  applicantId: number,
-  status: Applicant['status'],
-) => {
-  alert(status)
+interface ScheduleInterviewModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onSubmit: (data: { interviewDate: string; interviewTime: string; interviewType: string; meetingLink: string; notes: string }) => void
+  applicantName: string
+  isLoading: boolean
+}
+
+const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  applicantName,
+  isLoading,
+}) => {
+  const [interviewDate, setInterviewDate] = useState('')
+  const [interviewTime, setInterviewTime] = useState('')
+  const [interviewType, setInterviewType] = useState('Video Call')
+  const [meetingLink, setMeetingLink] = useState('')
+  const [notes, setNotes] = useState('')
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSubmit({ interviewDate, interviewTime, interviewType, meetingLink, notes })
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+
+  if (!isOpen) return null
+
+  return (
+    <div className='fixed inset-0 z-50 overflow-y-auto'>
+      <div className='flex min-h-screen items-center justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0'>
+        <div className='fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity' onClick={onClose} />
+        <div className='inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6'>
+          <div className='mb-4'>
+            <h3 className='text-lg font-semibold text-gray-900'>Schedule Interview</h3>
+            <p className='text-sm text-gray-500 mt-1'>Schedule an interview with {applicantName}</p>
+          </div>
+          <form onSubmit={handleSubmit} className='space-y-4'>
+            <div>
+              <label className='block text-sm font-medium text-gray-700 mb-1'>Interview Date</label>
+              <input
+                type='date'
+                required
+                min={today}
+                value={interviewDate}
+                onChange={e => setInterviewDate(e.target.value)}
+                className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500'
+              />
+            </div>
+            <div>
+              <label className='block text-sm font-medium text-gray-700 mb-1'>Interview Time</label>
+              <input
+                type='time'
+                required
+                value={interviewTime}
+                onChange={e => setInterviewTime(e.target.value)}
+                className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500'
+              />
+            </div>
+            <div>
+              <label className='block text-sm font-medium text-gray-700 mb-1'>Interview Type</label>
+              <select
+                value={interviewType}
+                onChange={e => setInterviewType(e.target.value)}
+                className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500'
+              >
+                <option value='Video Call'>Video Call</option>
+                <option value='Phone Call'>Phone Call</option>
+                <option value='In Person'>In Person</option>
+              </select>
+            </div>
+            <div>
+              <label className='block text-sm font-medium text-gray-700 mb-1'>Meeting Link</label>
+              <input
+                type='url'
+                value={meetingLink}
+                onChange={e => setMeetingLink(e.target.value)}
+                placeholder='https://meet.google.com/abc-def-ghi'
+                className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500'
+              />
+            </div>
+            <div>
+              <label className='block text-sm font-medium text-gray-700 mb-1'>Notes (Optional)</label>
+              <textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                rows={3}
+                placeholder='Add any notes or instructions for the interview...'
+                className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500'
+              />
+            </div>
+            <div className='flex gap-3 pt-4'>
+              <button
+                type='button'
+                onClick={onClose}
+                disabled={isLoading}
+                className='flex-1 px-4 py-2.5 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500'
+              >
+                Cancel
+              </button>
+              <button
+                type='submit'
+                disabled={isLoading || !interviewDate || !interviewTime}
+                className='flex-1 px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed'
+              >
+                {isLoading ? 'Scheduling...' : 'Schedule Interview'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface HireModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onSubmit: (data: { salary: string; contractUrl: string; notes: string }) => void
+  applicantName: string
+  isLoading: boolean
+}
+
+const HireModal: React.FC<HireModalProps> = ({ isOpen, onClose, onSubmit, applicantName, isLoading }) => {
+  const [salary, setSalary] = useState('')
+  const [contractUrl, setContractUrl] = useState('')
+  const [notes, setNotes] = useState('')
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSubmit({ salary, contractUrl, notes })
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className='fixed inset-0 z-50 overflow-y-auto'>
+      <div className='flex min-h-screen items-center justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0'>
+        <div className='fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity' onClick={onClose} />
+        <div className='inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6'>
+          <div className='mb-4'>
+            <h3 className='text-lg font-semibold text-gray-900'>Hire {applicantName}</h3>
+            <p className='text-sm text-gray-500 mt-1'>Provide offer details and hire the candidate</p>
+          </div>
+          <form onSubmit={handleSubmit} className='space-y-4'>
+            <div>
+              <label className='block text-sm font-medium text-gray-700 mb-1'>Salary / Offer Details (Optional)</label>
+              <input
+                type='text'
+                value={salary}
+                onChange={e => setSalary(e.target.value)}
+                placeholder='e.g., $50,000/year or $25/hour'
+                className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500'
+              />
+            </div>
+            <div>
+              <label className='block text-sm font-medium text-gray-700 mb-1'>Contract URL (Optional)</label>
+              <input
+                type='url'
+                value={contractUrl}
+                onChange={e => setContractUrl(e.target.value)}
+                placeholder='https://example.com/contract.pdf'
+                className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500'
+              />
+            </div>
+            <div>
+              <label className='block text-sm font-medium text-gray-700 mb-1'>Notes (Optional)</label>
+              <textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                rows={3}
+                placeholder='Add any additional notes...'
+                className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500'
+              />
+            </div>
+            <div className='flex gap-3 pt-4'>
+              <button
+                type='button'
+                onClick={onClose}
+                disabled={isLoading}
+                className='flex-1 px-4 py-2.5 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500'
+              >
+                Cancel
+              </button>
+              <button
+                type='submit'
+                disabled={isLoading}
+                className='flex-1 px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed'
+              >
+                {isLoading ? 'Hiring...' : 'Confirm Hire'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface RejectModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onSubmit: (reason: string) => void
+  applicantName: string
+  isLoading: boolean
+}
+
+const RejectModal: React.FC<RejectModalProps> = ({ isOpen, onClose, onSubmit, applicantName, isLoading }) => {
+  const [rejectionReason, setRejectionReason] = useState('')
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSubmit(rejectionReason)
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className='fixed inset-0 z-50 overflow-y-auto'>
+      <div className='flex min-h-screen items-center justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0'>
+        <div className='fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity' onClick={onClose} />
+        <div className='inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6'>
+          <div className='mb-4'>
+            <h3 className='text-lg font-semibold text-gray-900'>Reject {applicantName}</h3>
+            <p className='text-sm text-gray-500 mt-1'>Are you sure you want to reject this candidate?</p>
+          </div>
+          <form onSubmit={handleSubmit} className='space-y-4'>
+            <div>
+              <label className='block text-sm font-medium text-gray-700 mb-1'>Rejection Reason (Optional)</label>
+              <textarea
+                value={rejectionReason}
+                onChange={e => setRejectionReason(e.target.value)}
+                rows={3}
+                placeholder='Provide a reason for rejection...'
+                className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500'
+              />
+            </div>
+            <div className='flex gap-3 pt-4'>
+              <button
+                type='button'
+                onClick={onClose}
+                disabled={isLoading}
+                className='flex-1 px-4 py-2.5 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500'
+              >
+                Cancel
+              </button>
+              <button
+                type='submit'
+                disabled={isLoading}
+                className='flex-1 px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed'
+              >
+                {isLoading ? 'Rejecting...' : 'Confirm Rejection'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export const ApplicantProfilePage = () => {
   const location = useLocation()
   const navigate = useNavigate()
-  const applicant = location.state.applicant
-  console.log(location.state)
+  const [applicant, setApplicant] = useState(location.state?.applicant)
+  const [showInterviewModal, setShowInterviewModal] = useState(false)
+  const [showHireModal, setShowHireModal] = useState(false)
+  const [showRejectModal, setShowRejectModal] = useState(false)
+  const [isScheduling, setIsScheduling] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
 
-  useEffect(() => {}, [applicant])
+  // Mock interview data - replace with API fetch later
+  const [interviewData, setInterviewData] = useState<{
+    date?: string
+    time?: string
+    type?: string
+    status?: 'SCHEDULED' | 'COMPLETED'
+  } | null>(null)
+
+  useEffect(() => {
+    if (location.state?.applicant) {
+      setApplicant(location.state.applicant)
+    }
+  }, [location.state])
+
+  const handleScheduleInterview = async (data: {
+    interviewDate: string
+    interviewTime: string
+    interviewType: string
+    meetingLink: string
+    notes: string
+  }) => {
+    setIsScheduling(true)
+    try {
+      const interviewDateTime = `${data.interviewDate}T${data.interviewTime}:00`
+      await recruiterApplicantsService.scheduleInterview({
+        applicationId: applicant.id,
+        interviewDateTime,
+        interviewType: data.interviewType,
+        meetingLink: data.meetingLink,
+        notes: data.notes,
+      })
+
+      // Update local state
+      setApplicant({ ...applicant, status: 'Interviewing' })
+      setInterviewData({
+        date: data.interviewDate,
+        time: data.interviewTime,
+        type: data.interviewType,
+        status: 'SCHEDULED',
+      })
+      setShowInterviewModal(false)
+      toast.success('Interview scheduled successfully!')
+    } catch (error: any) {
+      console.error('Failed to schedule interview:', error)
+      const errorMessage = error.response?.data?.message || 'Failed to schedule interview. Please try again.'
+      toast.error(errorMessage)
+    } finally {
+      setIsScheduling(false)
+    }
+  }
+
+  const handleHire = async (data: { salary: string; contractUrl: string; notes: string }) => {
+    setIsProcessing(true)
+    try {
+      await recruiterApplicantsService.submitInterviewResult({
+        applicationId: applicant.id,
+        result: 'HIRED',
+        offerDetails: {
+          salary: data.salary || undefined,
+          contractUrl: data.contractUrl || undefined,
+        },
+        notes: data.notes || undefined,
+      })
+
+      // Update local state
+      setApplicant({ ...applicant, status: 'Hired' })
+      setShowHireModal(false)
+      toast.success(`${applicant.name} has been hired successfully!`)
+    } catch (error: any) {
+      console.error('Failed to hire applicant:', error)
+      const errorMessage = error.response?.data?.message || 'Failed to hire applicant. Please try again.'
+      toast.error(errorMessage)
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleReject = async (rejectionReason: string) => {
+    setIsProcessing(true)
+    try {
+      await recruiterApplicantsService.submitInterviewResult({
+        applicationId: applicant.id,
+        result: 'REJECTED',
+        rejectionReason: rejectionReason || undefined,
+      })
+
+      // Update local state
+      setApplicant({ ...applicant, status: 'Rejected' })
+      setShowRejectModal(false)
+      toast.success(`${applicant.name} has been rejected.`)
+    } catch (error: any) {
+      console.error('Failed to reject applicant:', error)
+      const errorMessage = error.response?.data?.message || 'Failed to reject applicant. Please try again.'
+      toast.error(errorMessage)
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleUpdateApplicantStatus = (
+    applicantId: number,
+    status: Applicant['status'],
+  ) => {
+    if (status === 'Interviewing') {
+      setShowInterviewModal(true)
+    } else if (status === 'Hired') {
+      setShowHireModal(true)
+    } else if (status === 'Rejected') {
+      setShowRejectModal(true)
+    } else {
+      setApplicant({ ...applicant, status })
+    }
+  }
 
   if (!applicant) {
     return (
@@ -53,7 +427,7 @@ export const ApplicantProfilePage = () => {
         <button
           onClick={() => navigate(-1)}
           className='mt-4 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-amber-600 hover:bg-amber-700'>
-          Go to Jobs
+          Go Back
         </button>
       </div>
     )
@@ -63,8 +437,8 @@ export const ApplicantProfilePage = () => {
     const baseButtonClasses =
       'w-full inline-flex justify-center items-center px-4 py-2.5 border text-sm font-medium rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2'
     const primaryButtonClasses = `${baseButtonClasses} border-transparent text-white bg-amber-600 hover:bg-amber-700 focus:ring-amber-500`
-    const secondaryButtonClasses = `${baseButtonClasses} border-gray-300 text-gray-700 bg-white hover:bg-amber-50 focus:ring-amber-500`
     const hireButtonClasses = `${baseButtonClasses} border-transparent text-white bg-green-600 hover:bg-green-700 focus:ring-green-500`
+    const rejectButtonClasses = `${baseButtonClasses} border-transparent text-white bg-red-600 hover:bg-red-700 focus:ring-red-500`
 
     switch (applicant.status) {
       case 'New':
@@ -80,10 +454,16 @@ export const ApplicantProfilePage = () => {
               Schedule Interview
             </button>
             <button
+              onClick={() => handleUpdateApplicantStatus(applicant.id, 'Hired')}
+              className={hireButtonClasses}>
+              <CheckCircleIcon className='mr-2 h-5 w-5' />
+              Hire Applicant
+            </button>
+            <button
               onClick={() =>
                 handleUpdateApplicantStatus(applicant.id, 'Rejected')
               }
-              className={secondaryButtonClasses}>
+              className={rejectButtonClasses}>
               <XCircleIcon className='mr-2 h-5 w-5' />
               Reject Applicant
             </button>
@@ -96,13 +476,11 @@ export const ApplicantProfilePage = () => {
               onClick={() => handleUpdateApplicantStatus(applicant.id, 'Hired')}
               className={hireButtonClasses}>
               <CheckCircleIcon className='mr-2 h-5 w-5' />
-              Make Offer & Hire
+              Hire Applicant
             </button>
             <button
-              onClick={() =>
-                handleUpdateApplicantStatus(applicant.id, 'Rejected')
-              }
-              className={secondaryButtonClasses}>
+              onClick={() => handleUpdateApplicantStatus(applicant.id, 'Rejected')}
+              className={rejectButtonClasses}>
               <XCircleIcon className='mr-2 h-5 w-5' />
               Reject Applicant
             </button>
@@ -174,6 +552,41 @@ export const ApplicantProfilePage = () => {
             </div>
           </Card>
 
+          {/* Interview Status Section */}
+          {interviewData && (
+            <Card>
+              <h4 className='text-lg font-semibold text-gray-800 mb-4'>Interview Details</h4>
+              <div className='space-y-3'>
+                <div className='flex justify-between items-center'>
+                  <span className='text-sm text-gray-600'>Date & Time:</span>
+                  <span className='text-sm font-medium text-gray-900'>
+                    {new Date(`${interviewData.date}T${interviewData.time}`).toLocaleString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </div>
+                <div className='flex justify-between items-center'>
+                  <span className='text-sm text-gray-600'>Interview Type:</span>
+                  <span className='text-sm font-medium text-gray-900'>{interviewData.type}</span>
+                </div>
+                <div className='flex justify-between items-center'>
+                  <span className='text-sm text-gray-600'>Status:</span>
+                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                    interviewData.status === 'COMPLETED'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    {interviewData.status === 'COMPLETED' ? 'Completed' : 'Scheduled'}
+                  </span>
+                </div>
+              </div>
+            </Card>
+          )}
+
           <Card>
             <h4 className='text-lg font-semibold text-gray-800 mb-4'>
               About {applicant.name.split(' ')[0]}
@@ -241,6 +654,30 @@ export const ApplicantProfilePage = () => {
           </Card>
         </div>
       </div>
+
+      <ScheduleInterviewModal
+        isOpen={showInterviewModal}
+        onClose={() => setShowInterviewModal(false)}
+        onSubmit={handleScheduleInterview}
+        applicantName={applicant.name}
+        isLoading={isScheduling}
+      />
+
+      <HireModal
+        isOpen={showHireModal}
+        onClose={() => setShowHireModal(false)}
+        onSubmit={handleHire}
+        applicantName={applicant.name}
+        isLoading={isProcessing}
+      />
+
+      <RejectModal
+        isOpen={showRejectModal}
+        onClose={() => setShowRejectModal(false)}
+        onSubmit={handleReject}
+        applicantName={applicant.name}
+        isLoading={isProcessing}
+      />
     </div>
   )
 }

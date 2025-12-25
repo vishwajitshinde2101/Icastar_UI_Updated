@@ -35,6 +35,7 @@ const roleBasedNavItems: Record<
   [UserRole.RECRUITER]: [
     { page: Page.Dashboard, icon: DashboardIcon, path: '/dashboard' },
     { page: Page.Jobs, icon: BriefcaseIcon, path: '/my-jobs' },
+    { page: Page.Auditions, icon: MicVocal, path: '/recruiter/auditions' },
     { page: Page.BrowseArtists, icon: SearchIcon, path: '/artists' },
     { page: Page.ChatCredits, icon: CreditCardIcon, path: '/chat-credits' },
     { page: Page.PastHires, icon: HistoryIcon, path: '/hires' },

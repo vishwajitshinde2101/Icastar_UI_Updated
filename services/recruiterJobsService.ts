@@ -31,6 +31,11 @@ export interface UpdateJobInput extends Partial<CreateJobInput> {
   status?: 'ACTIVE' | 'DRAFT' | 'CLOSED' | 'ARCHIVED'
 }
 
+export interface ChangeJobStatusInput {
+  status: 'ACTIVE' | 'DRAFT' | 'CLOSED' | 'PAUSED' | 'ARCHIVED'
+  reason?: string
+}
+
 export interface RecruiterJobDto {
   id: number
   title: string
@@ -138,6 +143,11 @@ export const recruiterJobsService = {
     const response = await api.post('/recruiter/jobs/bulk-upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
+    return response.data
+  },
+
+  async changeJobStatus(jobId: number | string, data: ChangeJobStatusInput): Promise<RecruiterJobDto> {
+    const response = await api.post(`/recruiter/jobs/${jobId}/status`, data)
     return response.data
   },
 }

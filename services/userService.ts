@@ -4,6 +4,8 @@ export interface User {
   id: string | number
   email: string
   fullName?: string
+  firstName?: string
+  lastName?: string
   phone?: string
   profilePicture?: string
   authProvider?: string
@@ -22,6 +24,9 @@ export interface AuthResponse {
     role: string
     status: string
     isVerified: boolean
+    firstName?: string
+    lastName?: string
+    fullName?: string
   }
 }
 
@@ -32,7 +37,7 @@ export interface LoginRequest {
 
 export interface RegisterRequest extends LoginRequest {
   firstName: string
-  lastName:string
+  lastName: string
   mobile?: string
   role: string
 }
@@ -44,11 +49,11 @@ export const authService = {
       const response = await api.post<AuthResponse>('/auth/login', credentials)
       console.log('Login response:', response.data.data)
 
-      const { token, email, mobile, role, status , isVerified } = response.data.data
+      const { token, email, mobile, role, status, isVerified, firstName, lastName, fullName } = response.data.data
 
       // Store tokens and user data
       localStorage.setItem('authToken', token)
-      localStorage.setItem('user', JSON.stringify({ email, mobile, role, status, isVerified }))
+      localStorage.setItem('user', JSON.stringify({ email, mobile, role, status, isVerified, firstName, lastName, fullName }))
 
       // Set default auth header for future requests
       api.interceptors.request.use(config => {

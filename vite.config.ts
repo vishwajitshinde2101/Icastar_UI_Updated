@@ -12,6 +12,12 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
+      },
+      server: {
+        historyApiFallback: true,
+      },
+      preview: {
+        historyApiFallback: true,
       }
     };
 });

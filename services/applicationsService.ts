@@ -71,10 +71,8 @@ export const applicationsService = {
   },
 
   async listMyApplications(params: ListMyApplicationsParams = {}): Promise<PaginatedResult<MyApplication>> {
-    const { page = 0, size = 20, sortBy = 'appliedAt', sortDir = 'desc', status } = params
-    const res = await apiClient.get('/my-applications', {
-      params: { page, size, sortBy, sortDir, status },
-    })
+    // Call API without any query parameters
+    const res = await apiClient.get('/my-applications')
 
     const normalized = normalizePaginated<any>(res.data)
 

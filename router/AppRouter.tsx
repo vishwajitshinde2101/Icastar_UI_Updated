@@ -2,7 +2,10 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import AuthLayout from '@/layouts/AuthLayout'
 import AuthPage from '@/pages/auth/AuthPage'
 import Auth from '@/pages/auth/Auth'
+import TermsAndConditionsPage from '@/pages/auth/TermsAndConditionsPage'
+import PrivacyPolicyPage from '@/pages/auth/PrivacyPolicyPage'
 import DashLayout from '@/layouts/DashLayout'
+import AdminLayout from '@/layouts/AdminLayout'
 import { PostJobPage } from '@/pages/recruiter/PostJobPage'
 import { BrowseArtistsPage } from '@/pages/recruiter/BrowseArtistsPage'
 import { ChatCreditsPage } from '@/pages/recruiter/ChatCreditsPage'
@@ -13,6 +16,10 @@ import { ArtistProfilePage } from '@/pages/recruiter/ArtistProfilePage'
 import { PastHireDetailPage } from '@/pages/recruiter/PastHireDetailPage'
 import { NotificationsPage } from '@/pages/recruiter/NotificationsPage'
 import { SettingsPage } from '@/pages/recruiter/SettingsPage'
+import AuditionsListPage from '@/pages/recruiter/AuditionsListPage'
+import CreateAuditionPage from '@/pages/recruiter/CreateAuditionPage'
+import AuditionApplicationsPage from '@/pages/recruiter/AuditionApplicationsPage'
+import AdminDashboardPage from '@/pages/admin/AdminDashboardPage'
 import DashboardIndex from '@/pages/DashboardIndex'
 import Jobs from '@/pages/artist/Jobs'
 import Bookmarks from '@/pages/artist/Bookmarks'
@@ -24,6 +31,7 @@ import ArtistRegistrationForm from '@/pages/artist/ArtistRegistrationForm'
 
 const AppRouter = () =>
   createBrowserRouter([
+    // Auth routes (public)
     {
       element: <AuthLayout />,
       children: [
@@ -40,87 +48,125 @@ const AppRouter = () =>
           element: <ArtistRegistrationForm />,
         },
         {
-          element: <DashLayout />,
-          children: [
-            {
-              path: '/dashboard',
-              element: <DashboardIndex />,
-            },
-            {
-              path: '/my-jobs',
-              element: <PostJobPage />,
-            },
-            {
-              path: '/jobs',
-              element: <Jobs />,
-            },
-            {
-              path: '/bookmarks',
-              element: <Bookmarks />,
-            },
-            // {
-            //   path: '/verified-badge',
-            //   element: <VerifiedBadge />,
-            // },
-            {
-              path: '/auditions',
-              element: <Auditions />,
-            },
-            {
-              path: '/applications',
-              element: <Applications />,
-            },
-            {
-              path: '/messages',
-              element: <Messages />,
-            },
-            {
-              path: '/artists',
-              element: <BrowseArtistsPage />,
-            },
-            {
-              path: '/chat-credits',
-              element: <ChatCreditsPage />,
-            },
-            {
-              path: '/hires',
-              element: <PastHiresPage />,
-            },
-            {
-              path: '/applicant-profile',
-              element: <ApplicantProfilePage />,
-            },
-            {
-              path: '/applicants',
-              element: <ApplicantsPage />,
-            },
-            {
-              path: '/artist-profile',
-              element: <ArtistProfilePage />,
-            },
-            {
-              path: '/past-hires',
-              element: <PastHireDetailPage />,
-            },
-            {
-              path: '/notifications',
-              element: <NotificationsPage />,
-            },
-            {
-              path: '/profile',
-              element: <ProfileIndex />,
-            },
-            {
-              path: '/settings',
-              element: <SettingsPage />,
-            },
-            {
-              path: '*',
-              element: <Navigate to='/' replace />,
-            },
-          ],
+          path: '/terms',
+          element: <TermsAndConditionsPage />,
+        },
+        {
+          path: '/privacy',
+          element: <PrivacyPolicyPage />,
         },
       ],
+    },
+    // Protected routes (dashboard)
+    {
+      element: <DashLayout />,
+      children: [
+        {
+          path: '/dashboard',
+          element: <DashboardIndex />,
+        },
+        {
+          path: '/my-jobs',
+          element: <PostJobPage />,
+        },
+        {
+          path: '/jobs',
+          element: <Jobs />,
+        },
+        {
+          path: '/bookmarks',
+          element: <Bookmarks />,
+        },
+        {
+          path: '/auditions',
+          element: <Auditions />,
+        },
+        {
+          path: '/applications',
+          element: <Applications />,
+        },
+        {
+          path: '/messages',
+          element: <Messages />,
+        },
+        {
+          path: '/artists',
+          element: <BrowseArtistsPage />,
+        },
+        {
+          path: '/chat-credits',
+          element: <ChatCreditsPage />,
+        },
+        {
+          path: '/hires',
+          element: <PastHiresPage />,
+        },
+        {
+          path: '/applicant-profile',
+          element: <ApplicantProfilePage />,
+        },
+        {
+          path: '/applicants',
+          element: <ApplicantsPage />,
+        },
+        {
+          path: '/artist-profile',
+          element: <ArtistProfilePage />,
+        },
+        {
+          path: '/past-hires',
+          element: <PastHireDetailPage />,
+        },
+        {
+          path: '/notifications',
+          element: <NotificationsPage />,
+        },
+        {
+          path: '/profile',
+          element: <ProfileIndex />,
+        },
+        {
+          path: '/settings',
+          element: <SettingsPage />,
+        },
+        // Recruiter Audition Routes
+        {
+          path: '/recruiter/auditions',
+          element: <AuditionsListPage />,
+        },
+        {
+          path: '/recruiter/auditions/create',
+          element: <CreateAuditionPage />,
+        },
+        {
+          path: '/recruiter/auditions/:auditionId/edit',
+          element: <CreateAuditionPage />,
+        },
+        {
+          path: '/recruiter/auditions/:auditionId/applications',
+          element: <AuditionApplicationsPage />,
+        },
+      ],
+    },
+    // Admin routes (protected)
+    {
+      element: <AdminLayout />,
+      children: [
+        {
+          path: '/admin/dashboard',
+          element: <AdminDashboardPage />,
+        },
+        // Redirect /admin to dashboard
+        {
+          path: '/admin',
+          element: <Navigate to='/admin/dashboard' replace />,
+        },
+      ],
+    },
+    // Catch-all route
+    {
+      path: '*',
+      element: <Navigate to='/' replace />,
     },
   ])
 
