@@ -13,6 +13,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Eye,
   EyeOff,
   Star,
@@ -127,8 +134,8 @@ const Auth = () => {
         error instanceof Error && (error as any).response?.data?.message
           ? (error as any).response.data.message
           : error instanceof Error
-          ? error.message
-          : 'Sign in failed. Please try again.'
+            ? error.message
+            : 'Sign in failed. Please try again.'
       toast.error(errorMessage)
     } finally {
       setIsLoading(false)
@@ -172,6 +179,9 @@ const Auth = () => {
     } else if (password !== confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match'
     }
+    if (!role) {
+      newErrors.role = 'Please select a role'
+    }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -201,8 +211,8 @@ const Auth = () => {
         error instanceof Error && (error as any).response?.data?.message
           ? (error as any).response.data.message
           : error instanceof Error
-          ? error.message
-          : 'Failed to create account. Please try again.'
+            ? error.message
+            : 'Failed to create account. Please try again.'
       toast.error(errorMessage)
     } finally {
       setIsLoading(false)
@@ -290,9 +300,8 @@ const Auth = () => {
                       placeholder='Enter your email'
                       value={email}
                       onChange={e => setEmail(e.target.value)}
-                      className={`bg-white/10 border-white/20 text-white placeholder:text-white/50 ${
-                        errors.email ? 'border-red-500' : ''
-                      }`}
+                      className={`bg-white/10 border-white/20 text-white placeholder:text-white/50 ${errors.email ? 'border-red-500' : ''
+                        }`}
                     />
                   </div>
 
@@ -316,9 +325,8 @@ const Auth = () => {
                         placeholder='Enter your password'
                         value={password}
                         onChange={e => setPassword(e.target.value)}
-                        className={`bg-white/10 border-white/20 text-white placeholder:text-white/50 pr-10 ${
-                          errors.password ? 'border-red-500' : ''
-                        }`}
+                        className={`bg-white/10 border-white/20 text-white placeholder:text-white/50 pr-10 ${errors.password ? 'border-red-500' : ''
+                          }`}
                       />
                       <Button
                         type='button'
@@ -384,9 +392,8 @@ const Auth = () => {
                           placeholder='Enter your first name'
                           value={firstName}
                           onChange={e => setFirstName(e.target.value)}
-                          className={`bg-white/10 border-white/20 text-white placeholder:text-white/50 ${
-                            errors.firstName ? 'border-red-500' : ''
-                          }`}
+                          className={`bg-white/10 border-white/20 text-white placeholder:text-white/50 ${errors.firstName ? 'border-red-500' : ''
+                            }`}
                         />
                       </div>
                       <div className='space-y-2 md:col-span-2'>
@@ -408,9 +415,8 @@ const Auth = () => {
                           placeholder='Enter your last name'
                           value={lastName}
                           onChange={e => setLastName(e.target.value)}
-                          className={`bg-white/10 border-white/20 text-white placeholder:text-white/50 ${
-                            errors.lastName ? 'border-red-500' : ''
-                          }`}
+                          className={`bg-white/10 border-white/20 text-white placeholder:text-white/50 ${errors.lastName ? 'border-red-500' : ''
+                            }`}
                         />
                       </div>
 
@@ -433,12 +439,43 @@ const Auth = () => {
                           placeholder='Enter your email'
                           value={email}
                           onChange={e => setEmail(e.target.value)}
-                          className={`bg-white/10 border-white/20 text-white placeholder:text-white/50 ${
-                            errors.email ? 'border-red-500' : ''
-                          }`}
+                          className={`bg-white/10 border-white/20 text-white placeholder:text-white/50 ${errors.email ? 'border-red-500' : ''
+                            }`}
                         />
                       </div>
                     </div>
+
+                    {/* Role Field */}
+                    <div className='space-y-2'>
+                      <div className='flex justify-between items-center'>
+                        <Label htmlFor='signup-role' className='text-white/90'>
+                          I am a
+                        </Label>
+                        {errors.role && (
+                          <span className='text-xs text-red-400'>
+                            {errors.role}
+                          </span>
+                        )}
+                      </div>
+                      <Select
+                        value={role}
+                        onValueChange={(value: string) =>
+                          setRole(value as UserRole)
+                        }>
+                        <SelectTrigger
+                          className={`bg-white/10 border-white/20 text-white ${errors.role ? 'border-red-500' : ''
+                            }`}>
+                          <SelectValue placeholder='Select your role' />
+                        </SelectTrigger>
+                        <SelectContent className='bg-white'>
+                          <SelectItem value={UserRole.ARTIST}>Artist</SelectItem>
+                          <SelectItem value={UserRole.RECRUITER}>
+                            Recruiter
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     {/* Mobile Field */}
                     <div className='space-y-2'>
                       <div className='flex justify-between items-center'>
@@ -458,9 +495,8 @@ const Auth = () => {
                         placeholder='Enter your mobile number'
                         value={mobile}
                         onChange={e => setMobile(e.target.value)}
-                        className={`bg-white/10 border-white/20 text-white placeholder:text-white/50 ${
-                          errors.mobile ? 'border-red-500' : ''
-                        }`}
+                        className={`bg-white/10 border-white/20 text-white placeholder:text-white/50 ${errors.mobile ? 'border-red-500' : ''
+                          }`}
                       />
                     </div>
 
@@ -485,9 +521,8 @@ const Auth = () => {
                           placeholder='Create a password'
                           value={password}
                           onChange={e => setPassword(e.target.value)}
-                          className={`bg-white/10 border-white/20 text-white placeholder:text-white/50 pr-10 w-full ${
-                            errors.password ? 'border-red-500' : ''
-                          }`}
+                          className={`bg-white/10 border-white/20 text-white placeholder:text-white/50 pr-10 w-full ${errors.password ? 'border-red-500' : ''
+                            }`}
                         />
                         <Button
                           type='button'
@@ -525,9 +560,8 @@ const Auth = () => {
                           placeholder='Confirm your password'
                           value={confirmPassword}
                           onChange={e => setConfirmPassword(e.target.value)}
-                          className={`bg-white/10 border-white/20 text-white placeholder:text-white/50 w-full pr-10 ${
-                            errors.confirmPassword ? 'border-red-500' : ''
-                          }`}
+                          className={`bg-white/10 border-white/20 text-white placeholder:text-white/50 w-full pr-10 ${errors.confirmPassword ? 'border-red-500' : ''
+                            }`}
                         />
                         <Button
                           type='button'
