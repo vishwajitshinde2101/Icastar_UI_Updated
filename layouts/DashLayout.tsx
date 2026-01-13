@@ -3,7 +3,7 @@ import { Outlet, useNavigate } from 'react-router-dom'
 import { Sidebar } from '@/components/Sidebar'
 import { Header } from '@/components/Header'
 import { UserRole } from '@/types/types'
-import artistService from '@/services/artistService'
+import authService from '@/services/userService'
 
 const DashLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -15,30 +15,31 @@ const DashLayout: React.FC = () => {
   const recruiterData = { name: 'John Doe', role: 'Admin' }
   const [notifications, setNotifications] = useState<string[]>(['Welcome!'])
 
-  // Check if artist profile exists
+  // Check if artist has completed onboarding
   useEffect(() => {
-    const checkProfile = async () => {
+    const checkOnboarding = async () => {
       const role = localStorage.getItem('role') as UserRole
 
       if (role === UserRole.ARTIST) {
-        // Check if profile exists via API
+        // Check onboarding status using /api/auth/me
         try {
-          const profile = await artistService.getMyProfile()
+          const user = await authService.getMe()
 
-          // If profile exists, update localStorage with isOnboardingComplete status
-          if (profile) {
-            const isOnboardingComplete = profile?.isOnboardingComplete === true
-            localStorage.setItem('isOnboardingComplete', String(isOnboardingComplete))
-            // Profile exists, allow access to dashboard
-          } else {
-            // Profile doesn't exist, redirect to onboarding
-            localStorage.setItem('isOnboardingComplete', 'false')
+          // Check isOnboardingComplete flag from user data
+          const isOnboardingComplete = user?.isOnboardingComplete === true
+
+          // Store onboarding status in localStorage
+          localStorage.setItem('isOnboardingComplete', String(isOnboardingComplete))
+
+          if (!isOnboardingComplete) {
+            // User has not completed onboarding, redirect to onboarding
             navigate('/onboarding', { replace: true })
             return
           }
+          // User has completed onboarding, allow access to dashboard
         } catch (error) {
-          // If API fails (profile doesn't exist), redirect to onboarding
-          console.error('Failed to fetch profile:', error)
+          // If API fails, redirect to onboarding to be safe
+          console.error('Failed to fetch user info:', error)
           localStorage.setItem('isOnboardingComplete', 'false')
           navigate('/onboarding', { replace: true })
           return
@@ -48,7 +49,7 @@ const DashLayout: React.FC = () => {
       setIsCheckingOnboarding(false)
     }
 
-    checkProfile()
+    checkOnboarding()
   }, [navigate])
 
   const handleToggleSidebar = () => {

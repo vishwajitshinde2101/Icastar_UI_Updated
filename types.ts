@@ -315,3 +315,41 @@ export interface AuditionStats {
   avgApplicationsPerCastingCall: number
   recentApplicationsLast30Days: number
 }
+// Open Audition Types
+export type OpenAuditionType = 'LIVE_VIDEO' | 'LIVE_AUDIO' | 'RECORDED_SUBMISSION' | 'IN_PERSON'
+export type OpenAuditionStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
+
+export interface OpenAudition {
+  id: number
+  title: string
+  description: string
+  auditionType: OpenAuditionType
+  scheduledAt: string
+  durationMinutes?: number
+  meetingLink?: string
+  instructions?: string
+  status: OpenAuditionStatus
+  isOpenAudition: boolean
+  targetArtistType: {
+    id: number
+    name: string
+    displayName: string
+  }
+  recruiter?: {
+    recruiterId: number
+    companyName?: string
+  }
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface CreateOpenAuditionDto {
+  artistTypeId: number
+  title: string
+  description: string
+  auditionType: OpenAuditionType
+  scheduledAt: string
+  durationMinutes?: number
+  meetingLink?: string
+  instructions?: string
+}

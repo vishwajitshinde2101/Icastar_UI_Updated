@@ -43,10 +43,20 @@ export const AuditionApplicationsPage: React.FC = () => {
     try {
       setLoading(true)
       const status = filterStatus === 'All' ? undefined : filterStatus
-      const data = await auditionService.getAuditionApplications(Number(auditionId), status)
-      setApplications(data || [])
+      const response = await auditionService.getAuditionApplications(Number(auditionId), status)
+
+      console.log('[AuditionApplications] Full response:', response)
+      console.log('[AuditionApplications] Response data array:', response?.data)
+      console.log('[AuditionApplications] Count:', response?.data?.length)
+
+      // Extract applications array from PaginatedResponse
+      const applicationsArray = Array.isArray(response?.data) ? response.data : []
+      console.log('[AuditionApplications] Setting applications array:', applicationsArray)
+
+      setApplications(applicationsArray)
     } catch (error) {
-      console.error('Failed to fetch applications:', error)
+      console.error('[AuditionApplications] Failed to fetch applications:', error)
+      console.error('[AuditionApplications] Error details:', (error as any).response?.data)
       toast.error('Failed to load applications')
       setApplications([])
     } finally {

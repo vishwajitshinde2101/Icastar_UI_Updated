@@ -69,6 +69,20 @@ export const AuditionsListPage: React.FC = () => {
     }
   }
 
+  const handlePublishAudition = async (id: number) => {
+    if (!window.confirm('Are you sure you want to publish this audition? It will be visible to all artists.')) return
+
+    try {
+      await auditionService.publishAudition(id)
+      toast.success('Audition published successfully! Artists can now see it.')
+      fetchAuditions()
+      fetchStats()
+    } catch (error) {
+      console.error('Failed to publish audition:', error)
+      toast.error('Failed to publish audition')
+    }
+  }
+
   const handleDeleteAudition = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this audition? This action cannot be undone.')) return
 
@@ -298,11 +312,18 @@ export const AuditionsListPage: React.FC = () => {
                     </button>
                   )}
                   {audition.status === 'DRAFT' && (
-                    <button
-                      onClick={() => handleDeleteAudition(audition.id)}
-                      className='px-3 py-2 bg-red-50 text-red-600 text-sm font-medium rounded-lg hover:bg-red-100'>
-                      Delete
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handlePublishAudition(audition.id)}
+                        className='px-3 py-2 bg-green-50 text-green-600 text-sm font-medium rounded-lg hover:bg-green-100'>
+                        Publish
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAudition(audition.id)}
+                        className='px-3 py-2 bg-red-50 text-red-600 text-sm font-medium rounded-lg hover:bg-red-100'>
+                        Delete
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -353,9 +374,19 @@ export const AuditionsListPage: React.FC = () => {
                         className='text-indigo-600 hover:text-indigo-900'>
                         Edit
                       </button>
+                      {audition.status === 'DRAFT' && (
+                        <button onClick={() => handlePublishAudition(audition.id)} className='text-green-600 hover:text-green-900'>
+                          Publish
+                        </button>
+                      )}
                       {audition.status === 'OPEN' && (
                         <button onClick={() => handleCloseAudition(audition.id)} className='text-red-600 hover:text-red-900'>
                           Close
+                        </button>
+                      )}
+                      {audition.status === 'DRAFT' && (
+                        <button onClick={() => handleDeleteAudition(audition.id)} className='text-red-600 hover:text-red-900'>
+                          Delete
                         </button>
                       )}
                     </td>

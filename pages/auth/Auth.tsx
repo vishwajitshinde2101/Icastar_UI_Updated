@@ -36,7 +36,6 @@ import authService, {
 import { toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { UserRole } from '@/types/types'
-import artistService from '@/services/artistService'
 
 const Auth = () => {
   const [showPassword, setShowPassword] = useState(false)
@@ -98,34 +97,33 @@ const Auth = () => {
 
       toast.success('You have successfully logged in!')
 
-      // Check if artist has completed onboarding
+      // Check onboarding status using /api/auth/me
       if (userRole === UserRole.ARTIST) {
         try {
-          // Call API to check if profile exists
-          const profile = await artistService.getMyProfile()
+          // Call /api/auth/me to get user info with onboarding status
+          const user = await authService.getMe()
 
-          // If profile exists (API call successful), check isOnboardingComplete flag
-          if (profile) {
-            const isOnboardingComplete = profile?.isOnboardingComplete === true
+          // Check isOnboardingComplete flag from user data
+          const isOnboardingComplete = user?.isOnboardingComplete === true
 
-            // Store onboarding status in localStorage
-            localStorage.setItem('isOnboardingComplete', String(isOnboardingComplete))
+          // Store onboarding status in localStorage
+          localStorage.setItem('isOnboardingComplete', String(isOnboardingComplete))
 
-            // If profile exists and isOnboardingComplete is true, go to dashboard
-            // Otherwise, still go to dashboard (profile exists means they can access dashboard)
+          if (isOnboardingComplete) {
+            // User has completed onboarding, go to dashboard
             navigate('/dashboard')
           } else {
-            // Profile doesn't exist, redirect to onboarding
-            localStorage.setItem('isOnboardingComplete', 'false')
+            // User has not completed onboarding, redirect to onboarding
             navigate('/onboarding')
           }
-        } catch (profileError) {
-          // If profile fetch fails (profile doesn't exist), redirect to onboarding
-          console.error('Failed to fetch profile:', profileError)
+        } catch (error) {
+          // If API fails, redirect to onboarding to be safe
+          console.error('Failed to fetch user info:', error)
           localStorage.setItem('isOnboardingComplete', 'false')
           navigate('/onboarding')
         }
       } else {
+        // For RECRUITER or other roles, go directly to dashboard
         navigate('/dashboard')
       }
     } catch (error) {

@@ -215,6 +215,7 @@ const Jobs: React.FC = () => {
   const [bookmarkLoadingId, setBookmarkLoadingId] = useState<number | null>(null)
   const [confirmBookmarkOpen, setConfirmBookmarkOpen] = useState(false)
   const [confirmBookmarkJobId, setConfirmBookmarkJobId] = useState<number | null>(null)
+  const [isRemovingBookmark, setIsRemovingBookmark] = useState(false)
 
   const jobTypes: JobType[] = useMemo(
     () => ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'FREELANCE', 'INTERNSHIP', 'PROJECT_BASED'],
@@ -289,17 +290,53 @@ const Jobs: React.FC = () => {
 
   const askBookmark = (jobId?: number) => {
     if (!jobId) return
+
+    // Check if job is already bookmarked
+    const job = uiJobs.find(j => j.id === jobId)
+    const isBookmarked = job?.isBookmarked || false
+
     setConfirmBookmarkJobId(jobId)
+    setIsRemovingBookmark(isBookmarked)
     setConfirmBookmarkOpen(true)
   }
 
   const handleBookmark = async (jobId?: number) => {
     if (!jobId) return
+
+    // Check if job is already bookmarked
+    const job = uiJobs.find(j => j.id === jobId)
+    const isCurrentlyBookmarked = job?.isBookmarked || false
+
     try {
       setBookmarkLoadingId(jobId)
-      await bookmarksService.bookmarkJob(jobId, {})
+
+      if (isCurrentlyBookmarked) {
+        // ❌ Remove bookmark
+        await bookmarksService.unbookmarkByJobId(jobId)
+
+        // Update local state to show empty bookmark icon
+        setUiJobs(prevJobs =>
+          prevJobs.map(job =>
+            job.id === jobId
+              ? { ...job, isBookmarked: false }
+              : job
+          )
+        )
+      } else {
+        // ✅ Add bookmark
+        await bookmarksService.bookmarkJob(jobId, {})
+
+        // Update local state to show filled bookmark icon
+        setUiJobs(prevJobs =>
+          prevJobs.map(job =>
+            job.id === jobId
+              ? { ...job, isBookmarked: true }
+              : job
+          )
+        )
+      }
     } catch (err) {
-      console.error('Failed to bookmark job', err)
+      console.error('Failed to toggle bookmark', err)
     } finally {
       setBookmarkLoadingId(null)
     }
@@ -487,10 +524,12 @@ const Jobs: React.FC = () => {
         <AlertDialogContent className='bg-white rounded-2xl border-0 shadow-2xl max-w-md'>
           <AlertDialogHeader>
             <AlertDialogTitle className='text-2xl font-bold text-gray-900'>
-              Save this job?
+              {isRemovingBookmark ? 'Remove this job?' : 'Save this job?'}
             </AlertDialogTitle>
             <AlertDialogDescription className='text-base text-gray-600 mt-2'>
-              This will add the job to your bookmarks.
+              {isRemovingBookmark
+                ? 'This will remove the job from your bookmarks.'
+                : 'This will add the job to your bookmarks.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className='gap-3 mt-6'>
@@ -507,10 +546,18 @@ const Jobs: React.FC = () => {
                 }
                 setConfirmBookmarkOpen(false)
               }}
-              className='bg-amber-600 hover:bg-amber-700 text-white rounded-xl px-6 py-2.5 font-semibold transition-colors border-0 shadow-md'
+              className={`${
+                isRemovingBookmark
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : 'bg-amber-600 hover:bg-amber-700'
+              } text-white rounded-xl px-6 py-2.5 font-semibold transition-colors border-0 shadow-md`}
               disabled={bookmarkLoadingId !== null}
             >
-              {bookmarkLoadingId !== null ? 'Saving...' : 'Confirm'}
+              {bookmarkLoadingId !== null
+                ? isRemovingBookmark
+                  ? 'Removing...'
+                  : 'Saving...'
+                : 'Confirm'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

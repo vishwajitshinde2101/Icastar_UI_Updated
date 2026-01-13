@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import Icon from '@/components/Icon'
-import { ArtistCategory } from '@/types'
 import artistService from '@/services/artistService'
+import { ImageUpload, DocumentUpload, VideoUpload } from '@/components/FileUpload'
 
 interface ArtistProfile {
   category: string
@@ -18,7 +18,9 @@ interface ArtistProfile {
   languages: string
   bio: string
   profilePhoto?: string
+  coverPhoto?: string
   idProof?: string
+  idProofVerified?: boolean
   faceVerification?: string
   isVerifiedBadge?: boolean
   isProfileComplete?: boolean
@@ -108,6 +110,9 @@ const Profile: React.FC = () => {
               : (data.languages as string) ?? '',
           bio: data.bio ?? '',
           profilePhoto: data.profilePhoto ?? data.avatarUrl ?? undefined,
+          coverPhoto: data.coverPhoto ?? undefined,
+          idProof: data.idProof ?? undefined,
+          idProofVerified: data.idProofVerified ?? false,
           isVerifiedBadge: data.isVerifiedBadge,
           isProfileComplete: data.isProfileComplete,
           actorType: data.actorType,
@@ -181,9 +186,13 @@ const Profile: React.FC = () => {
         languagesSpoken: editedProfile.languages ? editedProfile.languages.split(',').map(l => l.trim()) : [],
         gender: editedProfile.gender,
         dateOfBirth: editedProfile.dateOfBirth,
+        profilePhoto: editedProfile.profilePhoto,
+        coverPhoto: editedProfile.coverPhoto,
+        idProof: editedProfile.idProof,
         height: editedProfile.height,
         weight: editedProfile.weight,
         experienceYears: editedProfile.experienceYears ? Number(editedProfile.experienceYears) : undefined,
+        danceVideo: editedProfile.danceVideo,
         hairColor: editedProfile.hairColor,
         hairLength: editedProfile.hairLength,
         hasTattoo: editedProfile.hasTattoo,
@@ -379,25 +388,43 @@ const Profile: React.FC = () => {
             )}
           </div>
           <div>
-            <p className='text-sm text-gray-500 mb-2'>Showreel URL</p>
+            <p className='text-sm text-gray-500 mb-2'>Dance Showreel</p>
             {isEditing ? (
-              <input
-                type='url'
-                value={currentProfile?.danceVideo || ''}
-                onChange={(e) => handleInputChange('danceVideo', e.target.value)}
-                placeholder='e.g., https://youtube.com/...'
-                className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-              />
-            ) : currentProfile?.danceVideo ? (
-              <div className='aspect-w-16 aspect-h-9 rounded-lg overflow-hidden'>
-                <iframe
-                  src={currentProfile.danceVideo}
-                  className='w-full h-64 rounded-lg'
-                  title='Dance Showreel'
-                  allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture'
-                  allowFullScreen
-                ></iframe>
+              <div className="space-y-4">
+                <VideoUpload
+                  currentVideoUrl={currentProfile?.danceVideo}
+                  uploadType="AUDITION_VIDEO"
+                  label="Upload Dance Showreel"
+                  description="Show your best dance performance (max 100MB)"
+                  onUploadSuccess={(fileUrl) => handleInputChange('danceVideo', fileUrl)}
+                  maxSizeMB={100}
+                />
+                <div className="text-center text-gray-500 text-sm">OR</div>
+                <div>
+                  <label className='text-xs font-medium text-gray-500'>YouTube/Vimeo URL</label>
+                  <input
+                    type='url'
+                    value={currentProfile?.danceVideo || ''}
+                    onChange={(e) => handleInputChange('danceVideo', e.target.value)}
+                    placeholder='e.g., https://youtube.com/watch?v=...'
+                    className='w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                  />
+                </div>
               </div>
+            ) : currentProfile?.danceVideo ? (
+              currentProfile.danceVideo.includes('youtube.com') || currentProfile.danceVideo.includes('youtu.be') || currentProfile.danceVideo.includes('vimeo.com') ? (
+                <div className='aspect-w-16 aspect-h-9 rounded-lg overflow-hidden'>
+                  <iframe
+                    src={currentProfile.danceVideo}
+                    className='w-full h-64 rounded-lg'
+                    title='Dance Showreel'
+                    allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture'
+                    allowFullScreen
+                  ></iframe>
+                </div>
+              ) : (
+                <video src={currentProfile.danceVideo} controls className='w-full rounded-lg' />
+              )
             ) : (
               <p className='text-gray-500'>No showreel uploaded</p>
             )}
@@ -411,8 +438,8 @@ const Profile: React.FC = () => {
     const fields = currentProfile?.artistType?.fields
     if (!fields || fields.length === 0) {
       // Fallback or empty state if no metadata
-      if (currentProfile?.category === ArtistCategory.Actor) return renderActorDetails()
-      if (currentProfile?.category === ArtistCategory.Dancer) return renderDancerDetails()
+      if (currentProfile?.category?.toLowerCase() === 'actor') return renderActorDetails()
+      if (currentProfile?.category?.toLowerCase() === 'dancer') return renderDancerDetails()
       return null
     }
 
@@ -654,13 +681,26 @@ const Profile: React.FC = () => {
         {/* Left Column - Profile Card */}
         <div className='lg:col-span-1 space-y-6'>
           <div className='bg-white rounded-xl p-6 shadow-sm text-center'>
-            <div className='w-32 h-32 mx-auto mb-4 rounded-full overflow-hidden border-4 border-amber-100'>
-              <img
-                src={currentProfile?.profilePhoto || '/default-avatar.png'}
-                alt={currentProfile?.fullName}
-                className='w-full h-full object-cover'
-              />
-            </div>
+            {/* Profile Photo Upload in Edit Mode */}
+            {isEditing ? (
+              <div className="mb-6">
+                <ImageUpload
+                  currentImageUrl={currentProfile?.profilePhoto}
+                  uploadType="PROFILE_PHOTO"
+                  label="Profile Photo"
+                  aspectRatio="circle"
+                  onUploadSuccess={(fileUrl) => handleInputChange('profilePhoto', fileUrl)}
+                />
+              </div>
+            ) : (
+              <div className='w-32 h-32 mx-auto mb-4 rounded-full overflow-hidden border-4 border-amber-100'>
+                <img
+                  src={currentProfile?.profilePhoto || '/default-avatar.png'}
+                  alt={currentProfile?.fullName}
+                  className='w-full h-full object-cover'
+                />
+              </div>
+            )}
 
             {isEditing ? (
               <div className='space-y-3 text-left'>
@@ -847,20 +887,55 @@ const Profile: React.FC = () => {
             )}
           </div>
 
+          {/* Cover Photo Upload */}
+          {isEditing && (
+            <div className='bg-white rounded-xl p-6 shadow-sm'>
+              <ImageUpload
+                currentImageUrl={currentProfile?.coverPhoto}
+                uploadType="COVER_PHOTO"
+                label="Cover Photo"
+                aspectRatio="wide"
+                onUploadSuccess={(fileUrl) => handleInputChange('coverPhoto', fileUrl)}
+              />
+            </div>
+          )}
+
+          {/* ID Proof Upload */}
+          {isEditing && (
+            <div className='bg-white rounded-xl p-6 shadow-sm'>
+              <DocumentUpload
+                currentDocumentUrl={currentProfile?.idProof}
+                uploadType="ID_PROOF"
+                label="ID Proof"
+                description="Upload Aadhaar, PAN, Passport, or Driving License for verification"
+                onUploadSuccess={(fileUrl) => handleInputChange('idProof', fileUrl)}
+              />
+            </div>
+          )}
+
           {/* Verification Badge */}
           <div className='bg-white rounded-xl p-6 shadow-sm'>
             <h3 className='text-lg font-semibold text-gray-800 mb-4'>Verification</h3>
             <div className='space-y-4'>
-              <div className={`flex items-center p-3 rounded-lg ${profile.idProof ? 'bg-green-50' : 'bg-amber-50'}`}>
-                <div className={`p-2 rounded-full ${profile.idProof ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
-                  <Icon name={profile.idProof ? 'Check' : 'AlertCircle'} size={20} />
+              <div className={`flex items-center p-3 rounded-lg ${profile.idProof ? (profile.idProofVerified ? 'bg-green-50' : 'bg-yellow-50') : 'bg-amber-50'}`}>
+                <div className={`p-2 rounded-full ${profile.idProof ? (profile.idProofVerified ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600') : 'bg-amber-100 text-amber-600'}`}>
+                  <Icon name={profile.idProof ? (profile.idProofVerified ? 'CheckCircle' : 'Clock') : 'AlertCircle'} size={20} />
                 </div>
                 <div className='ml-3'>
                   <p className='text-sm font-medium text-gray-900'>ID Proof</p>
-                  <p className='text-xs text-gray-500'>{profile.idProof ? 'Verified' : 'Pending'}</p>
+                  <p className='text-xs text-gray-500'>
+                    {profile.idProof
+                      ? profile.idProofVerified
+                        ? 'Verified ✓'
+                        : 'Pending Verification'
+                      : 'Not Uploaded'}
+                  </p>
                 </div>
               </div>
               <div className={`flex items-center p-3 rounded-lg ${profile.faceVerification ? 'bg-green-50' : 'bg-amber-50'}`}>
+                <div className={`p-2 rounded-full ${profile.faceVerification ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                  <Icon name={profile.faceVerification ? 'CheckCircle' : 'AlertCircle'} size={20} />
+                </div>
                 <div className='ml-3'>
                   <p className='text-sm font-medium text-gray-900'>Face Verification</p>
                   <p className='text-xs text-gray-500'>{profile.faceVerification ? 'Verified' : 'Pending'}</p>
@@ -982,7 +1057,7 @@ const Profile: React.FC = () => {
                 </button>
               </div>
 
-              {profile.category === ArtistCategory.Dancer && profile.danceVideo && (
+              {profile.category?.toLowerCase() === 'dancer' && profile.danceVideo && (
                 <div className='flex items-center justify-between p-3 border border-gray-200 rounded-lg'>
                   <div className='flex items-center gap-3'>
                     <div className='p-2 bg-gray-100 rounded-lg text-gray-600'>

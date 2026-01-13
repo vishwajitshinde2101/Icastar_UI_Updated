@@ -75,6 +75,10 @@ export const bookmarksService = {
   async removeBookmark(bookmarkId: number): Promise<void> {
     await apiClient.delete(`/bookmarks/${bookmarkId}`)
   },
+
+  async unbookmarkByJobId(jobId: number): Promise<void> {
+    await apiClient.delete(`/bookmarks/job/${jobId}`)
+  },
 }
 
 export default bookmarksService

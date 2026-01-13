@@ -98,7 +98,19 @@ const auditionService = {
         size: filters?.size ?? 20,
       },
     })
-    return response.data
+
+    // Handle nested response structure from backend
+    const apiData = response.data?.data || response.data
+
+    // Transform to match PaginatedResponse interface
+    return {
+      success: response.data?.success ?? true,
+      data: Array.isArray(apiData) ? apiData : (apiData?.applications || apiData?.data || []),
+      totalElements: apiData?.totalElements || 0,
+      totalPages: apiData?.totalPages || 0,
+      currentPage: apiData?.currentPage || 0,
+      size: filters?.size ?? 20,
+    }
   },
 
   /**
@@ -192,6 +204,189 @@ const auditionService = {
   async getAuditionStats(): Promise<AuditionStats> {
     const response = await apiClient.get('/recruiter/auditions/stats')
     return response.data.data
+  },
+
+  // ==================== ARTIST AUDITION APIs ====================
+
+  /**
+   * Get all auditions for the artist (role-based)
+   * New API format: response.data.data contains { auditions, currentPage, totalPages, ... }
+   */
+  async getMyAuditions(filters?: {
+    page?: number
+    size?: number
+    status?: string
+    type?: string
+  }): Promise<PaginatedResponse<any>> {
+    const response = await apiClient.get('/artist/auditions', {
+      params: {
+        page: filters?.page ?? 0,
+        size: filters?.size ?? 20,
+        status: filters?.status,
+        type: filters?.type,
+      },
+    })
+
+    // New API returns: { success: true, data: { auditions: [...], totalPages, ... } }
+    const apiData = response.data?.data || response.data
+
+    // Transform to match PaginatedResponse interface
+    return {
+      success: response.data?.success ?? true,
+      data: apiData.auditions || [],
+      totalElements: apiData.totalElements || 0,
+      totalPages: apiData.totalPages || 0,
+      currentPage: apiData.currentPage || 0,
+      size: filters?.size ?? 20,
+    }
+  },
+
+  /**
+   * Get upcoming auditions for the artist
+   * Returns array directly (no pagination for upcoming)
+   */
+  async getUpcomingAuditions(): Promise<any[]> {
+    const response = await apiClient.get('/artist/auditions/upcoming')
+    const data = response.data?.data || response.data
+
+    // If response has 'auditions' array, use it; otherwise assume data is the array
+    return Array.isArray(data) ? data : (data.auditions || [])
+  },
+
+  /**
+   * Get past auditions for the artist
+   * Returns paginated response
+   */
+  async getPastAuditions(page: number = 0, size: number = 20): Promise<PaginatedResponse<any>> {
+    const response = await apiClient.get('/artist/auditions/past', {
+      params: { page, size },
+    })
+
+    // New API returns: { success: true, data: { auditions: [...], totalPages, ... } }
+    const apiData = response.data?.data || response.data
+
+    // Transform to match PaginatedResponse interface
+    return {
+      success: response.data?.success ?? true,
+      data: apiData.auditions || [],
+      totalElements: apiData.totalElements || 0,
+      totalPages: apiData.totalPages || 0,
+      currentPage: apiData.currentPage || 0,
+      size: size,
+    }
+  },
+
+  /**
+   * Get audition details by ID
+   */
+  async getMyAuditionById(id: number): Promise<any> {
+    const response = await apiClient.get(`/artist/auditions/${id}`)
+    return response.data.data
+  },
+
+  /**
+   * Update audition status (e.g., cancel)
+   */
+  async updateMyAuditionStatus(id: number, status: string): Promise<any> {
+    const response = await apiClient.put(`/artist/auditions/${id}/status`, { status })
+    return response.data.data
+  },
+
+  /**
+   * Cancel an audition
+   */
+  async cancelMyAudition(id: number): Promise<any> {
+    const response = await apiClient.post(`/artist/auditions/${id}/cancel`)
+    return response.data.data
+  },
+
+  /**
+   * Get audition statistics for artist
+   */
+  async getMyAuditionStats(): Promise<{
+    upcomingAuditions: number
+    hasUpcomingAuditions: boolean
+  }> {
+    const response = await apiClient.get('/artist/auditions/stats')
+    return response.data.data
+  },
+
+  // ==================== OPEN AUDITION APIs ====================
+
+  /**
+   * Get open auditions for artist (role-based filtering done by backend)
+   */
+  async getOpenAuditions(page: number = 0, size: number = 20): Promise<PaginatedResponse<any>> {
+    const response = await apiClient.get('/artist/auditions/open', {
+      params: { page, size },
+    })
+
+    // API returns: { success: true, data: { auditions: [...], totalPages, ... } }
+    const apiData = response.data?.data || response.data
+
+    // Transform to match PaginatedResponse interface
+    return {
+      success: response.data?.success ?? true,
+      data: apiData.auditions || [],
+      totalElements: apiData.totalElements || 0,
+      totalPages: apiData.totalPages || 0,
+      currentPage: apiData.currentPage || 0,
+      size: size,
+    }
+  },
+
+  /**
+   * Get single open audition details
+   */
+  async getOpenAuditionById(id: number): Promise<any> {
+    const response = await apiClient.get(`/artist/auditions/open/${id}`)
+    return response.data.data
+  },
+
+  // ==================== RECRUITER OPEN AUDITION APIs ====================
+
+  /**
+   * Create open audition (Recruiter only)
+   */
+  async createOpenAudition(data: any): Promise<any> {
+    const response = await apiClient.post('/recruiter/open-auditions', data)
+    return response.data
+  },
+
+  /**
+   * Get recruiter's open auditions
+   */
+  async getRecruiterOpenAuditions(page: number = 0, size: number = 20): Promise<PaginatedResponse<any>> {
+    const response = await apiClient.get('/recruiter/open-auditions', {
+      params: { page, size },
+    })
+
+    const apiData = response.data?.data || response.data
+
+    return {
+      success: response.data?.success ?? true,
+      data: apiData.auditions || apiData || [],
+      totalElements: apiData.totalElements || 0,
+      totalPages: apiData.totalPages || 0,
+      currentPage: apiData.currentPage || 0,
+      size: size,
+    }
+  },
+
+  /**
+   * Update open audition (Recruiter only)
+   */
+  async updateOpenAudition(id: number, data: any): Promise<any> {
+    const response = await apiClient.put(`/recruiter/open-auditions/${id}`, data)
+    return response.data
+  },
+
+  /**
+   * Delete open audition (Recruiter only)
+   */
+  async deleteOpenAudition(id: number): Promise<any> {
+    const response = await apiClient.delete(`/recruiter/open-auditions/${id}`)
+    return response.data
   },
 }
 

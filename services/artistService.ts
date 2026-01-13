@@ -17,6 +17,9 @@ export interface ArtistProfile {
   languagesSpoken?: string[] | string
   bio?: string
   profilePhoto?: string
+  coverPhoto?: string
+  idProof?: string
+  idProofVerified?: boolean
   actorType?: 'skilled' | 'known'
   age?: number
   dateOfBirth?: string
@@ -69,7 +72,7 @@ export interface UpdateArtistProfileInput extends Partial<ArtistProfile> { }
 
 export const artistService = {
   async getMyProfile(): Promise<ArtistProfile | null> {
-    const res = await api.get('/artist-profiles/complete')
+    const res = await api.get('/artists/profile/complete')
     const responseData = res.data?.data ?? res.data
     if (!responseData) return null
 

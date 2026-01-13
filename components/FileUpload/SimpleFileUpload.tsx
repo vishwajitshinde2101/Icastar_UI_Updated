@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
-import Icon from './Icon'
+import Icon from '../Icon'
 
 interface FileUploadProps {
   label: string

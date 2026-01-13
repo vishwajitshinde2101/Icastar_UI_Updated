@@ -3,6 +3,7 @@ import api from './apiClient'
 export interface User {
   id: string | number
   email: string
+  mobile?: string
   fullName?: string
   firstName?: string
   lastName?: string
@@ -14,6 +15,26 @@ export interface User {
   createdAt?: string
   updatedAt?: string
   roles?: string[]
+  role?: string
+  status?: string
+  isVerified?: boolean
+  isOnboardingComplete?: boolean
+  artistProfile?: {
+    artistProfileId: number
+    stageName?: string
+    isVerified: boolean
+    isProfileComplete: boolean
+    artistType?: {
+      id: number
+      name: string
+      displayName: string
+    }
+  }
+  recruiterProfile?: {
+    recruiterProfileId: number
+    companyName?: string
+    isVerifiedCompany: boolean
+  }
 }
 
 export interface AuthResponse {
@@ -82,12 +103,17 @@ export const authService = {
 
   async getCurrentUser(): Promise<User> {
     try {
-      const response = await api.get<User>('/auth/me')
-      return response.data
+      const response = await api.get('/auth/me')
+      const data = response.data?.data ?? response.data
+      return data
     } catch (error) {
       console.error('Failed to fetch user:', error)
       throw error
     }
+  },
+
+  async getMe(): Promise<User> {
+    return this.getCurrentUser()
   },
 
   logout(): void {

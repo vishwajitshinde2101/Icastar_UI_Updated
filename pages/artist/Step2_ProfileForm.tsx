@@ -2,7 +2,9 @@ import React, { useState } from 'react'
 import { ArtistCategory } from '@/types'
 import CommonFields from '@/components/forms/CommonFields'
 import { onboardingService } from '@/services/onboardingService'
+import authService from '@/services/userService'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 
 interface BaseFormData {
   category: ArtistCategory | null
@@ -84,13 +86,34 @@ const Step2_ProfileForm: React.FC<ProfileFormProps> = ({
       // Mark onboarding as complete
       payload.isOnboardingComplete = true
 
+      // Submit onboarding data
       const result = await onboardingService.submitOnboardingJson(payload)
       console.log('Onboarding successful:', result.message)
 
-      // Mark onboarding as complete in localStorage
-      localStorage.setItem('isOnboardingComplete', 'true')
+      // Verify onboarding status via /api/auth/me before navigating
+      try {
+        const user = await authService.getMe()
+        const isOnboardingComplete = user?.isOnboardingComplete === true
 
-      navigate('/dashboard')
+        // Store the verified onboarding status
+        localStorage.setItem('isOnboardingComplete', String(isOnboardingComplete))
+
+        if (isOnboardingComplete) {
+          // Successfully completed onboarding, navigate to dashboard
+          toast.success('Profile created successfully! Welcome to iCastar.')
+          navigate('/dashboard')
+        } else {
+          // Backend didn't set isOnboardingComplete flag - show error
+          console.error('Backend did not set isOnboardingComplete flag')
+          toast.error('Onboarding status not updated. Please contact support.')
+        }
+      } catch (verifyError) {
+        // /api/auth/me call failed - still try to navigate but log warning
+        console.warn('Failed to verify onboarding status:', verifyError)
+        localStorage.setItem('isOnboardingComplete', 'true')
+        toast.success('Profile created successfully!')
+        navigate('/dashboard')
+      }
     } catch (error) {
       console.error('Onboarding submission failed:', error)
       setErrors(prev => ({
