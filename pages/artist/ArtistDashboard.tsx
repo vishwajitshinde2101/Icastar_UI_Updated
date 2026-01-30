@@ -283,9 +283,8 @@ export const ArtistDashboard = () => {
                   <div className='mt-2 flex items-baseline gap-2'>
                     <p className='text-2xl font-bold text-gray-900'>{kpi.value}</p>
                   </div>
-                  <div className={`flex items-center text-xs font-semibold mt-1 ${
-                    isIncrease ? 'text-green-600' : 'text-red-600'
-                  }`}>
+                  <div className={`flex items-center text-xs font-semibold mt-1 ${isIncrease ? 'text-green-600' : 'text-red-600'
+                    }`}>
                     {isIncrease ? (
                       <ArrowUpIcon className='h-3 w-3 mr-0.5' />
                     ) : (
@@ -343,11 +342,10 @@ export const ArtistDashboard = () => {
               <button
                 key={days}
                 onClick={() => setTimeFilter(days)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  timeFilter === days
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${timeFilter === days
                     ? 'bg-purple-600 text-white shadow-md'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}>
+                  }`}>
                 {days} days
               </button>
             ))}

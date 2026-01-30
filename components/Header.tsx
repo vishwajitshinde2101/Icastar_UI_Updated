@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Recruiter, Page } from '../types'
 import {
-  BellIcon,
   ChevronDownIcon,
   CogIcon,
   LogOutIcon,
@@ -11,8 +10,6 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import userService from '@/services/userService'
-import { useNotifications } from '../hooks/useNotifications'
-import { NotificationPanel } from './NotificationPanel'
 const initialRecruiterData: Recruiter = {
   name: 'Alex Morgan',
   title: 'Recruiter',
@@ -32,13 +29,9 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const navigate = useNavigate()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false)
   const [userProfile, setUserProfile] = useState<any>(null)
 
   const dropdownRef = useRef<HTMLDivElement>(null)
-
-  // Use notification hook with 30-second polling
-  const { unreadCount, setUnreadCount } = useNotifications(30000)
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -98,33 +91,6 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         <MenuIcon className='h-6 w-6' />
       </button>
       <div className='flex items-center space-x-3 sm:space-x-5'>
-        <div className='relative'>
-          <button
-            onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-            className='p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 relative'
-            aria-expanded={isNotificationOpen}
-            aria-haspopup='true'>
-            <BellIcon className='h-6 w-6' />
-            {unreadCount > 0 && (
-              <>
-                <span className='absolute top-1 right-1.5 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white'></span>
-                {unreadCount > 0 && (
-                  <span className='absolute -top-1 -right-1 flex items-center justify-center h-5 w-5 text-xs font-bold text-white bg-red-500 rounded-full'>
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </>
-            )}
-          </button>
-
-          <NotificationPanel
-            isOpen={isNotificationOpen}
-            onClose={() => setIsNotificationOpen(false)}
-            unreadCount={unreadCount}
-            onUnreadCountChange={setUnreadCount}
-          />
-        </div>
-
         <div className='relative' ref={dropdownRef}>
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}

@@ -19,15 +19,11 @@ interface BaseFormData {
 }
 
 interface ProfileFormProps {
-  onNext: () => void
-  onBack: () => void
   formData: BaseFormData
   updateFormData: (data: Partial<BaseFormData>) => void
 }
 
 const Step2_ProfileForm: React.FC<ProfileFormProps> = ({
-  onNext,
-  onBack,
   formData,
   updateFormData,
 }) => {
@@ -133,13 +129,11 @@ const Step2_ProfileForm: React.FC<ProfileFormProps> = ({
         Profile Details
       </h2>
       <p className='text-gray-500 text-center mb-8'>
-        Fill in your details for:{' '}
-        <span className='font-bold text-primary'>{formData.category}</span>
+        Complete your artist profile to get started
       </p>
 
       <form onSubmit={handleSubmit}>
         <div className='space-y-8'>
-          {/* {renderCategoryForm()} */}
           <CommonFields
             formData={formData}
             updateFormData={updateFormData}
@@ -147,29 +141,21 @@ const Step2_ProfileForm: React.FC<ProfileFormProps> = ({
           />
         </div>
 
-        <div className='mt-10 pt-6 border-t flex flex-col-reverse sm:flex-row justify-between items-center gap-4'>
+        <div className='mt-10 pt-6 border-t flex justify-center items-center gap-4'>
           <button
-            type='button'
-            onClick={onBack}
-            className='text-gray-600 font-bold py-3 px-8 rounded-lg hover:bg-gray-100 border border-gray-200 transition-all w-full sm:w-auto'>
-            Back
+            type='submit'
+            disabled={isSubmitting}
+            aria-busy={isSubmitting}
+            className='bg-primary text-white font-bold py-3 px-12 rounded-lg shadow-md hover:bg-primary/90 transition-all disabled:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-70'>
+            {isSubmitting ? (
+              <span className='inline-flex items-center gap-2'>
+                <span className='inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin' />
+                Submitting...
+              </span>
+            ) : (
+              'Submit & Complete Onboarding'
+            )}
           </button>
-          <div className='flex flex-col sm:flex-row gap-4 w-full sm:w-auto'>
-            <button
-              type='submit'
-              disabled={isSubmitting}
-              aria-busy={isSubmitting}
-              className='bg-primary text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-primary/90 transition-all disabled:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-70 w-full sm:w-auto'>
-              {isSubmitting ? (
-                <span className='inline-flex items-center gap-2'>
-                  <span className='inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin' />
-                  Submitting...
-                </span>
-              ) : (
-                'Review & Submit'
-              )}
-            </button>
-          </div>
         </div>
       </form>
     </div>

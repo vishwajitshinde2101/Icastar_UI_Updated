@@ -8,7 +8,7 @@ import DashLayout from '@/layouts/DashLayout'
 import AdminLayout from '@/layouts/AdminLayout'
 import { PostJobPage } from '@/pages/recruiter/PostJobPage'
 import { BrowseArtistsPage } from '@/pages/recruiter/BrowseArtistsPage'
-import { ChatCreditsPage } from '@/pages/recruiter/ChatCreditsPage'
+import CandidatesPage from '@/pages/recruiter/CandidatesPage'
 import { PastHiresPage } from '@/pages/recruiter/PastHiresPage'
 import { ApplicantProfilePage } from '@/pages/recruiter/ApplicantProfilePage'
 import { ApplicantsPage } from '@/pages/recruiter/ApplicantsPage'
@@ -94,8 +94,8 @@ const AppRouter = () =>
           element: <BrowseArtistsPage />,
         },
         {
-          path: '/chat-credits',
-          element: <ChatCreditsPage />,
+          path: '/candidates',
+          element: <CandidatesPage />,
         },
         {
           path: '/hires',

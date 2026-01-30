@@ -35,6 +35,9 @@ interface ArtistProfile {
   hasTattoo?: boolean
   hasMole?: boolean
   shoeSize?: string
+  eyeColor?: string
+  complexion?: string
+  hasPassport?: boolean
   // Dancer specific
   danceStyles?: string[]
   experienceYears?: string
@@ -103,11 +106,23 @@ const Profile: React.FC = () => {
           phone: data.phone ?? '',
           gender: data.gender ?? '',
           city: data.city ?? data.location ?? '',
-          languages: Array.isArray(data.languages)
-            ? data.languages.join(', ')
-            : Array.isArray(data.languagesSpoken)
-              ? data.languagesSpoken.join(', ')
-              : (data.languages as string) ?? '',
+          languages: (() => {
+            try {
+              if (Array.isArray(data.languages)) {
+                return data.languages.join(', ')
+              }
+              if (Array.isArray(data.languagesSpoken)) {
+                return data.languagesSpoken.join(', ')
+              }
+              if (typeof data.languagesSpoken === 'string' && data.languagesSpoken.startsWith('[')) {
+                return JSON.parse(data.languagesSpoken).join(', ')
+              }
+              return (data.languages as string) ?? ''
+            } catch (e) {
+              console.error('Error parsing languages:', e)
+              return (data.languages as string) ?? ''
+            }
+          })(),
           bio: data.bio ?? '',
           profilePhoto: data.profilePhoto ?? data.avatarUrl ?? undefined,
           coverPhoto: data.coverPhoto ?? undefined,
@@ -125,6 +140,9 @@ const Profile: React.FC = () => {
           hasTattoo: data.hasTattoo,
           hasMole: data.hasMole,
           shoeSize: data.shoeSize,
+          eyeColor: data.eyeColor,
+          complexion: data.complexion,
+          hasPassport: data.hasPassport,
           danceStyles: data.danceStyles ?? undefined,
           experienceYears: data.experienceYears ? String(data.experienceYears) : undefined,
           danceVideo: data.danceVideo ?? undefined,
@@ -198,6 +216,9 @@ const Profile: React.FC = () => {
         hasTattoo: editedProfile.hasTattoo,
         hasMole: editedProfile.hasMole,
         shoeSize: editedProfile.shoeSize,
+        eyeColor: editedProfile.eyeColor,
+        complexion: editedProfile.complexion,
+        hasPassport: editedProfile.hasPassport,
         maritalStatus: editedProfile.maritalStatus,
         skills: editedProfile.skills ? editedProfile.skills.split(',').map(s => s.trim()) : undefined,
         comfortableAreas: editedProfile.comfortableAreas ? editedProfile.comfortableAreas.split(',').map(a => a.trim()) : undefined,
@@ -1020,7 +1041,8 @@ const Profile: React.FC = () => {
                 )}
               </div>
               <div>
-                <label className='text-sm font-medium text-gray-700 block mb-1'>Hourly Rate</label>
+                <label className='text-sm font-medium text-gray-700 block mb-1'>Per Day
+                </label>
                 {isEditing ? (
                   <input
                     type='number'
@@ -1030,6 +1052,200 @@ const Profile: React.FC = () => {
                   />
                 ) : (
                   <p className='text-gray-600'>{currentProfile?.hourlyRate ? `$${currentProfile.hourlyRate}/hr` : '-'}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Physical Attributes */}
+          <div className='bg-white rounded-xl p-6 shadow-sm'>
+            <h3 className='text-lg font-semibold text-gray-800 mb-4'>Physical Attributes</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              {/* Hair Color */}
+              <div>
+                <label className='text-sm font-medium text-gray-700 block mb-1'>Hair Color</label>
+                {isEditing ? (
+                  <input
+                    type='text'
+                    value={currentProfile?.hairColor || ''}
+                    onChange={(e) => handleInputChange('hairColor', e.target.value)}
+                    placeholder="e.g., Black, Brown"
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                  />
+                ) : (
+                  <p className='text-gray-600'>{currentProfile?.hairColor || '-'}</p>
+                )}
+              </div>
+
+              {/* Hair Length */}
+              <div>
+                <label className='text-sm font-medium text-gray-700 block mb-1'>Hair Length</label>
+                {isEditing ? (
+                  <input
+                    type='text'
+                    value={currentProfile?.hairLength || ''}
+                    onChange={(e) => handleInputChange('hairLength', e.target.value)}
+                    placeholder="e.g., Short, Medium, Long"
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                  />
+                ) : (
+                  <p className='text-gray-600'>{currentProfile?.hairLength || '-'}</p>
+                )}
+              </div>
+
+              {/* Eye Color */}
+              <div>
+                <label className='text-sm font-medium text-gray-700 block mb-1'>Eye Color</label>
+                {isEditing ? (
+                  <input
+                    type='text'
+                    value={currentProfile?.eyeColor || ''}
+                    onChange={(e) => handleInputChange('eyeColor', e.target.value)}
+                    placeholder="e.g., Brown, Blue"
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                  />
+                ) : (
+                  <p className='text-gray-600'>{currentProfile?.eyeColor || '-'}</p>
+                )}
+              </div>
+
+              {/* Complexion */}
+              <div>
+                <label className='text-sm font-medium text-gray-700 block mb-1'>Complexion</label>
+                {isEditing ? (
+                  <input
+                    type='text'
+                    value={currentProfile?.complexion || ''}
+                    onChange={(e) => handleInputChange('complexion', e.target.value)}
+                    placeholder="e.g., Fair, Wheatish"
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                  />
+                ) : (
+                  <p className='text-gray-600'>{currentProfile?.complexion || '-'}</p>
+                )}
+              </div>
+
+              {/* Shoe Size */}
+              <div>
+                <label className='text-sm font-medium text-gray-700 block mb-1'>Shoe Size</label>
+                {isEditing ? (
+                  <input
+                    type='text'
+                    value={currentProfile?.shoeSize || ''}
+                    onChange={(e) => handleInputChange('shoeSize', e.target.value)}
+                    placeholder="e.g., 8, 9, 10"
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                  />
+                ) : (
+                  <p className='text-gray-600'>{currentProfile?.shoeSize || '-'}</p>
+                )}
+              </div>
+
+              {/* Features (Checkboxes) */}
+              <div className="md:col-span-2">
+                <label className='text-sm font-medium text-gray-700 block mb-2'>Features</label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="flex items-center gap-2">
+                    {isEditing ? (
+                      <>
+                        <input
+                          type="checkbox"
+                          checked={currentProfile?.hasTattoo || false}
+                          onChange={(e) => handleInputChange('hasTattoo', e.target.checked)}
+                          className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
+                        />
+                        <label className='text-sm text-gray-700'>Has Tattoo</label>
+                      </>
+                    ) : (
+                      <>
+                        <Icon
+                          name={currentProfile?.hasTattoo ? 'CheckSquare' : 'Square'}
+                          size={18}
+                          className={currentProfile?.hasTattoo ? 'text-amber-600' : 'text-gray-400'}
+                        />
+                        <span className='text-sm text-gray-700'>Has Tattoo</span>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {isEditing ? (
+                      <>
+                        <input
+                          type="checkbox"
+                          checked={currentProfile?.hasMole || false}
+                          onChange={(e) => handleInputChange('hasMole', e.target.checked)}
+                          className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
+                        />
+                        <label className='text-sm text-gray-700'>Has Mole</label>
+                      </>
+                    ) : (
+                      <>
+                        <Icon
+                          name={currentProfile?.hasMole ? 'CheckSquare' : 'Square'}
+                          size={18}
+                          className={currentProfile?.hasMole ? 'text-amber-600' : 'text-gray-400'}
+                        />
+                        <span className='text-sm text-gray-700'>Has Mole</span>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {isEditing ? (
+                      <>
+                        <input
+                          type="checkbox"
+                          checked={currentProfile?.hasPassport || false}
+                          onChange={(e) => handleInputChange('hasPassport', e.target.checked)}
+                          className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
+                        />
+                        <label className='text-sm text-gray-700'>Has Passport</label>
+                      </>
+                    ) : (
+                      <>
+                        <Icon
+                          name={currentProfile?.hasPassport ? 'CheckSquare' : 'Square'}
+                          size={18}
+                          className={currentProfile?.hasPassport ? 'text-amber-600' : 'text-gray-400'}
+                        />
+                        <span className='text-sm text-gray-700'>Has Passport</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Personal Information */}
+          <div className='bg-white rounded-xl p-6 shadow-sm'>
+            <h3 className='text-lg font-semibold text-gray-800 mb-4'>Personal Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              {/* Marital Status */}
+              <div>
+                <label className='text-sm font-medium text-gray-700 block mb-1'>Marital Status</label>
+                {isEditing ? (
+                  <select
+                    value={currentProfile?.maritalStatus || ''}
+                    onChange={(e) => handleInputChange('maritalStatus', e.target.value)}
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                  >
+                    <option value="">Select</option>
+                    <option value="SINGLE">Single</option>
+                    <option value="MARRIED">Married</option>
+                    <option value="DIVORCED">Divorced</option>
+                    <option value="WIDOWED">Widowed</option>
+                    <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+                  </select>
+                ) : (
+                  <p className='text-gray-600'>
+                    {currentProfile?.maritalStatus
+                      ? currentProfile.maritalStatus.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+                      : '-'}
+                  </p>
                 )}
               </div>
             </div>

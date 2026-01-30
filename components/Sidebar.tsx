@@ -2,20 +2,15 @@ import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Page } from '../types'
 import {
-  LayoutGrid,
-  Briefcase,
   Bookmark,
-  BadgeCheck,
   MicVocal,
   FileText,
-  MessageSquare,
+  Users,
 } from 'lucide-react'
 import {
   BriefcaseIcon,
-  CreditCardIcon,
   DashboardIcon,
   HistoryIcon,
-  WandSparklesIcon,
   SearchIcon,
   XIcon,
 } from './icons/IconComponents'
@@ -37,7 +32,7 @@ const roleBasedNavItems: Record<
     { page: Page.Jobs, icon: BriefcaseIcon, path: '/my-jobs' },
     { page: Page.Auditions, icon: MicVocal, path: '/recruiter/auditions' },
     { page: Page.BrowseArtists, icon: SearchIcon, path: '/artists' },
-    { page: Page.ChatCredits, icon: CreditCardIcon, path: '/chat-credits' },
+    { page: Page.Candidates, icon: Users, path: '/candidates' },
     { page: Page.PastHires, icon: HistoryIcon, path: '/hires' },
   ],
   [UserRole.ARTIST]: [
@@ -57,7 +52,6 @@ const roleBasedNavItems: Record<
     { page: Page.Dashboard, icon: DashboardIcon, path: '/dashboard' },
     { page: Page.BrowseArtists, icon: SearchIcon, path: '/artists' },
     { page: Page.Jobs, icon: BriefcaseIcon, path: '/jobs' },
-    { page: Page.ChatCredits, icon: CreditCardIcon, path: '/chat-credits' },
   ],
 }
 

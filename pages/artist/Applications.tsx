@@ -120,11 +120,6 @@ const Applications: React.FC = () => {
                 <tr key={app.id} className='hover:bg-gray-50 transition-colors'>
                   <td className='p-5'>
                     <div className='flex items-center gap-3'>
-                      <img
-                        src={app.logo || placeholderLogo}
-                        alt={app.company || 'Company'}
-                        className='w-10 h-10 rounded-lg'
-                      />
                       <div>
                         <p className='font-bold'>{app.jobTitle}</p>
                       </div>
@@ -142,11 +137,6 @@ const Applications: React.FC = () => {
                   </td>
                   <td className='p-5'>
                     <StatusTag status={app.status} />
-                  </td>
-                  <td className='p-5 text-right'>
-                    <button className='text-gray-400 hover:text-[#7C3AED]'>
-                      <Icon name='MoreHorizontal' />
-                    </button>
                   </td>
                 </tr>
               ))}

@@ -19,15 +19,6 @@ const Navbar: React.FC = () => {
         </div>
       </div>
       <div className='flex items-center gap-6'>
-        <button className='relative text-gray-500 hover:text-[#7C3AED] transition-colors'>
-          <Icon name='Bell' size={24} />
-          <span className='absolute -top-1 -right-1 flex h-4 w-4'>
-            <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-[#A78BFA] opacity-75'></span>
-            <span className='relative inline-flex rounded-full h-4 w-4 bg-[#7C3AED] text-white text-xs items-center justify-center'>
-              3
-            </span>
-          </span>
-        </button>
         <div className='flex items-center gap-3'>
           <img
             src='https://picsum.photos/seed/useravatar/40/40'

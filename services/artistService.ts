@@ -94,7 +94,18 @@ export const artistService = {
       location: responseData.location,
       city: responseData.city ?? responseData.location,
       maritalStatus: responseData.maritalStatus,
-      languagesSpoken: responseData.languagesSpoken,
+      languagesSpoken: (() => {
+        try {
+          const ls = responseData.languagesSpoken
+          if (typeof ls === 'string' && ls.startsWith('[')) {
+            return JSON.parse(ls)
+          }
+          return ls
+        } catch (e) {
+          console.error('Failed to parse languagesSpoken:', e)
+          return []
+        }
+      })(),
       languages: responseData.languagesSpoken,
       comfortableAreas: responseData.comfortableAreas,
       projectsWorked: responseData.projectsWorked,
@@ -107,6 +118,9 @@ export const artistService = {
       hasTattoo: responseData.hasTattoo,
       hasMole: responseData.hasMole,
       shoeSize: responseData.shoeSize,
+      eyeColor: responseData.eyeColor,
+      complexion: responseData.complexion,
+      hasPassport: responseData.hasPassport,
       travelCities: responseData.travelCities,
       hourlyRate: responseData.hourlyRate,
       isVerifiedBadge: responseData.isVerifiedBadge,

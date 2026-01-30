@@ -10,7 +10,10 @@ import { ProfileCompletionBar } from '../../components/ProfileCompletionBar'
 import { HireRequestModal } from '../../components/HireRequestModal'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { getAudienceMetrics, AudienceMetricsDto } from '../../services/recruiterArtistsService'
+import { createHireRequest, getHireRequests } from '../../services/hireRequestsService'
+import { recruiterJobsService } from '../../services/recruiterJobsService'
 import authService from '../../services/userService'
+import { toast } from 'react-toastify'
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
 const initialJobs: Job[] = [
   {
@@ -242,11 +245,93 @@ export const ArtistProfilePage = () => {
   const [isHireModalOpen, setIsHireModalOpen] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
-  const [jobs, setJobs] = useState<Job[]>(initialJobs)
+  const [jobs, setJobs] = useState<Job[]>([])
+  const [loadingJobs, setLoadingJobs] = useState(true)
   const artist = location.state?.artist
 
   const [activeTab, setActiveTab] = useState<'profile' | 'audience'>('profile')
   const [isOwner, setIsOwner] = useState(false)
+  const [hasPendingRequest, setHasPendingRequest] = useState(false)
+  const [checkingPendingRequest, setCheckingPendingRequest] = useState(true)
+
+  // Fetch recruiter's jobs
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        setLoadingJobs(true)
+        const result = await recruiterJobsService.listMyJobs({
+          page: 0,
+          size: 50,
+          sortBy: 'createdAt',
+          sortDir: 'desc'
+        })
+
+        // Helper to format job type for display
+        const formatJobType = (type: string | undefined): string => {
+          if (!type) return 'Full-time'
+          return type
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join('-')
+        }
+
+        // Filter only ACTIVE jobs for hire request dropdown
+        const activeJobs = result.items
+          .filter(job => job.status === 'ACTIVE')
+          .map(job => ({
+            id: job.id,
+            title: job.title,
+            type: formatJobType(job.jobType),
+            applicants: job.applicationsCount || 0,
+            status: 'Active',
+            postedDate: job.createdAt || '',
+            createdDate: job.createdAt || new Date().toISOString(),
+            description: job.description || '',
+            skills: job.skillsRequired?.join(', ') || '',
+            boosted: job.isFeatured || false,
+          } as Job))
+
+        setJobs(activeJobs)
+      } catch (error) {
+        console.error('Failed to fetch jobs:', error)
+        toast.error('Failed to load your jobs')
+        // Fallback to empty array
+        setJobs([])
+      } finally {
+        setLoadingJobs(false)
+      }
+    }
+
+    fetchJobs()
+  }, [])
+
+  // Check for existing pending hire requests for this artist
+  useEffect(() => {
+    const checkPendingHireRequest = async () => {
+      if (!artist) return
+
+      try {
+        setCheckingPendingRequest(true)
+        const result = await getHireRequests({
+          artistId: artist.id,
+          status: 'PENDING',
+          page: 0,
+          size: 1, // We only need to know if at least one exists
+        })
+
+        // If there's at least one pending hire request for this artist
+        setHasPendingRequest(result.totalElements > 0)
+      } catch (error) {
+        console.error('Failed to check pending hire requests:', error)
+        // On error, assume no pending request to allow user to try
+        setHasPendingRequest(false)
+      } finally {
+        setCheckingPendingRequest(false)
+      }
+    }
+
+    checkPendingHireRequest()
+  }, [artist])
 
   useEffect(() => {
     // Check if the current recruiter created this artist
@@ -294,18 +379,37 @@ export const ArtistProfilePage = () => {
     setIsHireModalOpen(true)
   }
 
-  const handleSendRequest = (jobId: string, message: string) => {
-    const selectedJob = jobs.find(j => j.id === parseInt(jobId))
-    console.log({
-      artistId: artist.id,
-      jobId,
-      jobTitle: selectedJob?.title,
-      message,
-    })
-    alert(
-      `Hire request sent to ${artist.name} for the role of ${selectedJob?.title}!`,
-    )
-    setIsHireModalOpen(false)
+  const handleSendRequest = async (jobId: string, message: string) => {
+    if (!artist) return
+
+    try {
+      const hireRequest = await createHireRequest({
+        artistId: artist.id,
+        jobId: parseInt(jobId),
+        message,
+      })
+
+      toast.success(`Hire request sent to ${artist.name}! Status: ${hireRequest.status}`)
+      setIsHireModalOpen(false)
+
+      // Update state to show pending status
+      setHasPendingRequest(true)
+
+      // Navigate to Candidates page to show the newly created request
+      setTimeout(() => {
+        navigate('/candidates')
+      }, 1000)
+    } catch (error: any) {
+      console.error('Error sending hire request:', error)
+
+      // Check if error is about duplicate request
+      if (error.response?.data?.error?.includes('already have a pending hire request')) {
+        toast.error('You already have a pending hire request for this artist')
+        setHasPendingRequest(true)
+      } else {
+        toast.error('Failed to send hire request. Please try again.')
+      }
+    }
   }
 
   return (
@@ -315,7 +419,7 @@ export const ArtistProfilePage = () => {
         onClose={() => setIsHireModalOpen(false)}
         onSendRequest={handleSendRequest}
         artist={artist}
-        jobs={jobs.filter(j => j.status === 'Active')}
+        jobs={jobs}
       />
       <div>
         <div className='flex items-center mb-6 gap-4'>
@@ -405,12 +509,28 @@ export const ArtistProfilePage = () => {
                 <h4 className='text-lg font-semibold text-gray-800 mb-4'>
                   Actions
                 </h4>
-                <button
-                  onClick={handleOpenHireModal}
-                  className='w-full inline-flex justify-center items-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary'>
-                  <BriefcaseIcon className='mr-2 h-5 w-5' />
-                  Send Hire Request
-                </button>
+                {checkingPendingRequest ? (
+                  <div className='w-full py-2.5 text-center text-sm text-gray-500'>
+                    Checking status...
+                  </div>
+                ) : hasPendingRequest ? (
+                  <div className='w-full py-2.5 px-4 bg-amber-50 border border-amber-200 rounded-lg text-center'>
+                    <div className='flex items-center justify-center gap-2'>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                      </svg>
+                      <span className='text-sm font-semibold text-amber-800'>Pending Hire Request</span>
+                    </div>
+                    <p className='text-xs text-amber-600 mt-1'>You already sent a hire request to this artist</p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleOpenHireModal}
+                    className='w-full inline-flex justify-center items-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary'>
+                    <BriefcaseIcon className='mr-2 h-5 w-5' />
+                    Send Hire Request
+                  </button>
+                )}
               </Card>
               <Card>
                 <h4 className='text-lg font-semibold text-gray-800 mb-4'>

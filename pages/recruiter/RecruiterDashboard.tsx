@@ -243,7 +243,7 @@ export const RecruiterDashboard = () => {
       icon: PlusIcon,
       bgColor: 'bg-amber-600',
       hoverColor: 'hover:bg-amber-700',
-      action: () => navigate('/post-job'),
+      action: () => navigate('/my-jobs'),
     },
     {
       title: 'Schedule Interview',

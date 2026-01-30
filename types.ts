@@ -4,7 +4,7 @@ export enum Page {
   Applicants = 'Applicants',
   BrowseArtists = 'Browse Artists',
   Suggestions = 'Suggestions',
-  ChatCredits = 'Chat Credits',
+  Candidates = 'Candidates',
   PastHires = 'Past Hires',
   PastHireDetail = 'Past Hire Detail',
   ApplicantProfile = 'Applicant Profile',
@@ -84,6 +84,119 @@ export interface Hire {
   jobTitle: string
   jobId: number
   hiredDate: string
+}
+
+// Hire Request Status
+export type HireRequestStatus = 'PENDING' | 'VIEWED' | 'ACCEPTED' | 'DECLINED' | 'HIRED' | 'WITHDRAWN' | 'EXPIRED'
+
+// Hire Request Interface
+export interface HireRequest {
+  id: number
+  recruiterId: number
+  recruiterName: string
+  recruiterCompany?: string
+  artistId: number
+  artistName: string
+  artistEmail: string
+  artistProfileUrl?: string
+  artistCategory?: string
+  artistSkills?: string[]
+  jobId: number
+  jobTitle: string
+  jobType?: string
+  message: string
+  status: HireRequestStatus
+  sentAt: string
+  viewedAt?: string
+  respondedAt?: string
+  hiredAt?: string
+  notes?: string
+  artistResponse?: string
+  emailSent?: boolean
+  reminderSent?: boolean
+  reminderSentAt?: string
+  offeredSalary?: number
+  projectDetails?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+// Create Hire Request DTO
+export interface CreateHireRequestDto {
+  artistId: number
+  jobId: number
+  message: string
+  offeredSalary?: number
+  projectDetails?: string
+  notes?: string
+}
+
+// Update Hire Request Status DTO
+export interface UpdateHireRequestStatusDto {
+  status: HireRequestStatus
+  notes?: string
+}
+
+// Hire Request Filters
+export interface HireRequestFilters {
+  status?: HireRequestStatus
+  artistCategory?: string
+  artistId?: number
+  jobId?: number
+  searchTerm?: string
+  page?: number
+  size?: number
+  sortBy?: string
+  sortDir?: string
+}
+
+// Backend Paginated Response (Spring Boot format)
+export interface PagedResponse<T> {
+  content: T[]
+  pageable: {
+    pageNumber: number
+    pageSize: number
+    sort: {
+      sorted: boolean
+      unsorted: boolean
+    }
+  }
+  totalElements: number
+  totalPages: number
+  last: boolean
+  first: boolean
+  numberOfElements: number
+}
+
+// Paginated Hire Requests Response
+export interface PagedHireRequestsResult {
+  items: HireRequest[]
+  totalElements: number
+  totalPages: number
+  currentPage: number
+  size: number
+}
+
+// Backend API Response Wrapper
+export interface ApiResponse<T> {
+  success: boolean
+  message?: string
+  data?: T
+  error?: string
+}
+
+// Hire Request Statistics
+export interface HireRequestStats {
+  total: number
+  pending: number
+  viewed: number
+  accepted: number
+  declined: number
+  hired: number
+  withdrawn: number
+  expired: number
+  acceptanceRate: number
+  responseRate: number
 }
 
 export interface Job {
