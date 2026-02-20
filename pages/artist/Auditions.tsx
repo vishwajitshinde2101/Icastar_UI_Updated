@@ -2,12 +2,37 @@ import React, { useState, useEffect } from 'react'
 import Icon from '@/components/Icon'
 import auditionService from '@/services/auditionService'
 import { toast } from 'react-toastify'
+import { useNavigate } from 'react-router-dom'
 
 interface AuditionData {
   id: number
-  type: string
+  title: string
+  description: string
+  projectTitle?: string
+  projectType: string
+  roleType: string
+  characterName?: string
+  characterDescription?: string
+  auditionFormat: string
+  auditionLocation?: string
+  auditionDate?: string
+  applicationDeadline?: string
   status: string
-  scheduledAt: string
+  compensationType?: string
+  compensationDetails?: string
+  skillsRequired?: string[]
+  ageRangeMin?: number
+  ageRangeMax?: number
+  genderPreference?: string
+  isUrgent?: boolean
+  isFeatured?: boolean
+  recruiterName?: string
+  productionCompany?: string
+  director?: string
+  castingDirector?: string
+  // Legacy fields for backward compatibility
+  type?: string
+  scheduledAt?: string
   durationMinutes?: number
   meetingLink?: string
   instructions?: string
@@ -25,15 +50,13 @@ interface AuditionData {
   }
 }
 
-const getIconForType = (type: string): string => {
-  switch (type) {
-    case 'LIVE_VIDEO':
+const getIconForFormat = (format: string): string => {
+  switch (format) {
+    case 'VIRTUAL':
       return 'Video'
-    case 'LIVE_AUDIO':
-      return 'Mic'
     case 'IN_PERSON':
       return 'MapPin'
-    case 'RECORDED_SUBMISSION':
+    case 'SELF_TAPE':
       return 'Camera'
     default:
       return 'Calendar'
@@ -41,74 +64,239 @@ const getIconForType = (type: string): string => {
 }
 
 const formatDate = (dateString: string): string => {
+  if (!dateString) return 'TBD'
   const date = new Date(dateString)
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+const getProjectTypeLabel = (type: string): string => {
+  const labels: Record<string, string> = {
+    'FEATURE_FILM': 'Feature Film',
+    'TV_SERIES': 'TV Series',
+    'COMMERCIAL': 'Commercial',
+    'THEATER': 'Theater',
+    'WEB_SERIES': 'Web Series',
+    'SHORT_FILM': 'Short Film',
+    'MUSIC_VIDEO': 'Music Video',
+  }
+  return labels[type] || type
+}
+
+const getRoleTypeLabel = (type: string): string => {
+  const labels: Record<string, string> = {
+    'LEAD': 'Lead Role',
+    'SUPPORTING': 'Supporting',
+    'BACKGROUND': 'Background',
+    'EXTRA': 'Extra',
+  }
+  return labels[type] || type
 }
 
 const AuditionItem: React.FC<{
   audition: AuditionData
   onCancel: (id: number) => void
-}> = ({ audition, onCancel }) => {
-  const icon = getIconForType(audition.type)
-  const title = audition.job?.jobTitle || 'Audition'
-  const date = formatDate(audition.scheduledAt)
-  const location = audition.job?.location || 'Location TBD'
-  const company = audition.job?.company || audition.recruiter?.companyName || 'Company'
+  onViewDetails: (audition: AuditionData) => void
+}> = ({ audition, onCancel, onViewDetails }) => {
+  const icon = getIconForFormat(audition.auditionFormat || audition.type || 'VIRTUAL')
+  const title = audition.title || audition.job?.jobTitle || 'Audition'
+  const location = audition.auditionLocation || audition.job?.location || 'Location TBD'
+  const company = audition.productionCompany || audition.job?.company || audition.recruiter?.companyName || 'Production Company'
+  const deadline = formatDate(audition.applicationDeadline || '')
+  const auditionDate = formatDate(audition.auditionDate || audition.scheduledAt || '')
+
+  const handleViewDetails = () => {
+    onViewDetails(audition)
+  }
+
+  const handleApply = () => {
+    // For now, show the details modal
+    // TODO: Implement apply functionality
+    onViewDetails(audition)
+  }
 
   const getStatusBadge = () => {
     switch (audition.status) {
+      case 'OPEN':
+        return <span className='px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold'>Open</span>
+      case 'CLOSED':
+        return <span className='px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-semibold'>Closed</span>
+      case 'CANCELLED':
+        return <span className='px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold'>Cancelled</span>
+      case 'DRAFT':
+        return <span className='px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold'>Draft</span>
       case 'SCHEDULED':
         return <span className='px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold'>Scheduled</span>
       case 'COMPLETED':
         return <span className='px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold'>Completed</span>
-      case 'CANCELLED':
-        return <span className='px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold'>Cancelled</span>
       case 'IN_PROGRESS':
         return <span className='px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold'>In Progress</span>
-      case 'NO_SHOW':
-        return <span className='px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-semibold'>No Show</span>
       default:
         return null
     }
   }
 
   return (
-    <li className='bg-white/90 rounded-2xl p-5 flex items-center gap-5 hover:bg-amber-50 transition-colors duration-300 shadow-md border border-amber-50'>
-      <div className='bg-amber-100 text-amber-800 w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0'>
-        <Icon name={icon as any} size={32} />
-      </div>
-      <div className='flex-grow'>
-        <div className='flex items-center gap-2 mb-1'>
-          <h3 className='font-bold text-lg'>{title}</h3>
-          {getStatusBadge()}
+    <li className='bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden'>
+      <div className='flex flex-col md:flex-row'>
+        {/* Left Section - Icon and Basic Info */}
+        <div className='flex items-start gap-4 p-6 flex-1'>
+          <div className='bg-gradient-to-br from-amber-100 to-amber-200 text-amber-800 w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm'>
+            <Icon name={icon as any} size={32} />
+          </div>
+
+          <div className='flex-1 min-w-0'>
+            {/* Title and Badges */}
+            <div className='flex items-start gap-2 mb-2 flex-wrap'>
+              <h3 className='font-bold text-xl text-gray-900 flex-1'>{title}</h3>
+              {getStatusBadge()}
+              {audition.isUrgent && (
+                <span className='px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold flex items-center gap-1'>
+                  <Icon name='AlertCircle' size={12} />
+                  Urgent
+                </span>
+              )}
+              {audition.isFeatured && (
+                <span className='px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-semibold flex items-center gap-1'>
+                  <Icon name='Star' size={12} />
+                  Featured
+                </span>
+              )}
+            </div>
+
+            {/* Project and Role Info */}
+            <div className='space-y-1 mb-3'>
+              {audition.projectTitle && (
+                <p className='text-sm text-gray-700 font-medium'>
+                  <Icon name='Film' size={14} className='inline mr-1' />
+                  {audition.projectTitle}
+                </p>
+              )}
+              <p className='text-sm text-gray-600'>{company}</p>
+              <div className='flex flex-wrap gap-2 items-center text-xs text-gray-500'>
+                <span className='px-2 py-1 bg-gray-100 rounded-md font-medium'>
+                  {getProjectTypeLabel(audition.projectType)}
+                </span>
+                <span className='px-2 py-1 bg-gray-100 rounded-md font-medium'>
+                  {getRoleTypeLabel(audition.roleType)}
+                </span>
+                {audition.characterName && (
+                  <span className='px-2 py-1 bg-blue-50 text-blue-700 rounded-md font-medium'>
+                    Character: {audition.characterName}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Description */}
+            {audition.description && (
+              <p className='text-sm text-gray-600 line-clamp-2 mb-3'>
+                {audition.description}
+              </p>
+            )}
+
+            {/* Requirements */}
+            <div className='flex flex-wrap gap-3 text-xs text-gray-600'>
+              {audition.ageRangeMin && audition.ageRangeMax && (
+                <span className='flex items-center gap-1'>
+                  <Icon name='Users' size={12} />
+                  Age: {audition.ageRangeMin}-{audition.ageRangeMax}
+                </span>
+              )}
+              {audition.genderPreference && audition.genderPreference !== 'ANY' && (
+                <span className='flex items-center gap-1'>
+                  <Icon name='User' size={12} />
+                  {audition.genderPreference}
+                </span>
+              )}
+              {audition.compensationType && (
+                <span className='flex items-center gap-1'>
+                  <Icon name='DollarSign' size={12} />
+                  {audition.compensationType}
+                </span>
+              )}
+            </div>
+
+            {/* Skills Required */}
+            {audition.skillsRequired && audition.skillsRequired.length > 0 && (
+              <div className='mt-3 flex flex-wrap gap-1'>
+                {audition.skillsRequired.slice(0, 4).map((skill, idx) => (
+                  <span key={idx} className='px-2 py-1 bg-amber-50 text-amber-700 rounded-md text-xs font-medium'>
+                    {skill}
+                  </span>
+                ))}
+                {audition.skillsRequired.length > 4 && (
+                  <span className='px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs'>
+                    +{audition.skillsRequired.length - 4} more
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-        <p className='text-sm text-gray-500'>{company}</p>
-        {audition.durationMinutes && (
-          <p className='text-xs text-gray-400 mt-1'>Duration: {audition.durationMinutes} minutes</p>
-        )}
-      </div>
-      <div className='text-right flex-shrink-0'>
-        <p className='font-semibold text-amber-700'>{date}</p>
-        <p className='text-sm text-gray-600 flex items-center justify-end gap-1'>
-          <Icon name='MapPin' size={14} />
-          {location}
-        </p>
-        {audition.meetingLink && audition.status === 'SCHEDULED' && (
-          <a
-            href={audition.meetingLink}
-            target='_blank'
-            rel='noopener noreferrer'
-            className='text-xs text-blue-600 hover:text-blue-800 underline mt-1 block'>
-            Join Meeting
-          </a>
-        )}
-        {audition.status === 'SCHEDULED' && (
-          <button
-            onClick={() => onCancel(audition.id)}
-            className='text-xs text-red-600 hover:text-red-800 mt-1 block'>
-            Cancel
-          </button>
-        )}
+
+        {/* Right Section - Dates and Actions */}
+        <div className='bg-gray-50 p-6 md:w-64 flex flex-col justify-between border-t md:border-t-0 md:border-l border-gray-200'>
+          <div className='space-y-3'>
+            {/* Location */}
+            <div className='flex items-start gap-2'>
+              <Icon name='MapPin' size={16} className='text-gray-400 mt-0.5' />
+              <div>
+                <p className='text-xs text-gray-500 uppercase font-semibold'>Location</p>
+                <p className='text-sm text-gray-700 font-medium'>{location}</p>
+              </div>
+            </div>
+
+            {/* Audition Date */}
+            {auditionDate && auditionDate !== 'TBD' && (
+              <div className='flex items-start gap-2'>
+                <Icon name='Calendar' size={16} className='text-gray-400 mt-0.5' />
+                <div>
+                  <p className='text-xs text-gray-500 uppercase font-semibold'>Audition Date</p>
+                  <p className='text-sm text-gray-700 font-medium'>{auditionDate}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Application Deadline */}
+            {deadline && deadline !== 'TBD' && (
+              <div className='flex items-start gap-2'>
+                <Icon name='Clock' size={16} className='text-amber-500 mt-0.5' />
+                <div>
+                  <p className='text-xs text-gray-500 uppercase font-semibold'>Apply By</p>
+                  <p className='text-sm text-amber-700 font-bold'>{deadline}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Director/Casting Director */}
+            {(audition.director || audition.castingDirector) && (
+              <div className='flex items-start gap-2'>
+                <Icon name='User' size={16} className='text-gray-400 mt-0.5' />
+                <div>
+                  {audition.director && (
+                    <p className='text-xs text-gray-600'>
+                      <span className='font-semibold'>Director:</span> {audition.director}
+                    </p>
+                  )}
+                  {audition.castingDirector && (
+                    <p className='text-xs text-gray-600'>
+                      <span className='font-semibold'>Casting:</span> {audition.castingDirector}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className='mt-4'>
+            <button
+              onClick={handleViewDetails}
+              className='w-full px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg shadow-sm transition-colors duration-200'>
+              View Details
+            </button>
+          </div>
+        </div>
       </div>
     </li>
   )
@@ -121,6 +309,8 @@ const Auditions: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'past' | 'open'>('open')
   const [page, setPage] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
+  const [selectedAudition, setSelectedAudition] = useState<AuditionData | null>(null)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
 
   const fetchAuditions = async () => {
     try {
@@ -184,6 +374,16 @@ const Auditions: React.FC = () => {
       console.error('Failed to cancel audition:', error)
       toast.error('Failed to cancel audition')
     }
+  }
+
+  const handleViewDetails = (audition: AuditionData) => {
+    setSelectedAudition(audition)
+    setIsDetailsModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsDetailsModalOpen(false)
+    setSelectedAudition(null)
   }
 
   return (
@@ -276,26 +476,43 @@ const Auditions: React.FC = () => {
               </div>
             </div>
           ) : auditions.length === 0 ? (
-            <div className='bg-white rounded-2xl shadow-lg p-8 flex items-center justify-center'>
-              <div className='text-center'>
-                <Icon name='Calendar' size={64} className='mx-auto text-gray-300 mb-4' />
-                <h3 className='text-xl font-bold text-gray-700'>No Auditions Found</h3>
-                <p className='text-gray-500'>
+            <div className='bg-white rounded-2xl shadow-lg p-12 flex items-center justify-center min-h-[400px]'>
+              <div className='text-center max-w-md'>
+                <div className='bg-amber-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4'>
+                  <Icon name='Search' size={40} className='text-amber-600' />
+                </div>
+                <h3 className='text-2xl font-bold text-gray-900 mb-2'>No Auditions Found</h3>
+                <p className='text-gray-600 mb-4'>
                   {filter === 'open'
-                    ? 'No open auditions available for your role at the moment. Check back later!'
+                    ? 'No open auditions available for your role at the moment. New opportunities are posted regularly, so check back soon!'
                     : filter === 'upcoming'
-                    ? 'You have no upcoming auditions scheduled.'
+                    ? 'You have no upcoming auditions scheduled. Browse open auditions to apply for new opportunities.'
                     : filter === 'past'
-                    ? 'You have no past auditions.'
-                    : 'You have no auditions yet.'}
+                    ? 'You have no past auditions. Your audition history will appear here once you start applying.'
+                    : 'You have no auditions yet. Start exploring open auditions to find your next opportunity!'}
                 </p>
+                {filter !== 'open' && (
+                  <button
+                    onClick={() => {
+                      setFilter('open')
+                      setPage(0)
+                    }}
+                    className='px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg shadow-sm transition-colors duration-200'>
+                    Browse Open Auditions
+                  </button>
+                )}
               </div>
             </div>
           ) : (
             <>
               <ul className='space-y-4'>
                 {auditions.map((audition) => (
-                  <AuditionItem key={audition.id} audition={audition} onCancel={handleCancelAudition} />
+                  <AuditionItem
+                    key={audition.id}
+                    audition={audition}
+                    onCancel={handleCancelAudition}
+                    onViewDetails={handleViewDetails}
+                  />
                 ))}
               </ul>
 
@@ -332,6 +549,192 @@ const Auditions: React.FC = () => {
             />
             <h3 className='text-xl font-bold mt-4 text-gray-700'>Map View is Coming Soon!</h3>
             <p className='text-gray-500'>Visually explore auditions near you.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Audition Details Modal */}
+      {isDetailsModalOpen && selectedAudition && (
+        <div className='fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4' onClick={handleCloseModal}>
+          <div className='bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl' onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className='sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10'>
+              <div className='flex-1'>
+                <h2 className='text-2xl font-bold text-gray-900'>{selectedAudition.title}</h2>
+                <p className='text-sm text-gray-600 mt-1'>{selectedAudition.productionCompany || 'Production Company'}</p>
+              </div>
+              <button
+                onClick={handleCloseModal}
+                className='ml-4 p-2 hover:bg-gray-100 rounded-full transition-colors'>
+                <Icon name='X' size={24} className='text-gray-500' />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className='p-6 space-y-6'>
+              {/* Project Information */}
+              <div>
+                <h3 className='text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2'>
+                  <Icon name='Film' size={20} className='text-amber-600' />
+                  Project Information
+                </h3>
+                <div className='bg-gray-50 rounded-xl p-4 space-y-2'>
+                  {selectedAudition.projectTitle && (
+                    <div className='flex justify-between'>
+                      <span className='text-sm font-medium text-gray-600'>Project Title:</span>
+                      <span className='text-sm text-gray-900'>{selectedAudition.projectTitle}</span>
+                    </div>
+                  )}
+                  <div className='flex justify-between'>
+                    <span className='text-sm font-medium text-gray-600'>Project Type:</span>
+                    <span className='text-sm text-gray-900'>{getProjectTypeLabel(selectedAudition.projectType)}</span>
+                  </div>
+                  {selectedAudition.director && (
+                    <div className='flex justify-between'>
+                      <span className='text-sm font-medium text-gray-600'>Director:</span>
+                      <span className='text-sm text-gray-900'>{selectedAudition.director}</span>
+                    </div>
+                  )}
+                  {selectedAudition.castingDirector && (
+                    <div className='flex justify-between'>
+                      <span className='text-sm font-medium text-gray-600'>Casting Director:</span>
+                      <span className='text-sm text-gray-900'>{selectedAudition.castingDirector}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Role Details */}
+              <div>
+                <h3 className='text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2'>
+                  <Icon name='User' size={20} className='text-amber-600' />
+                  Role Details
+                </h3>
+                <div className='bg-gray-50 rounded-xl p-4 space-y-2'>
+                  <div className='flex justify-between'>
+                    <span className='text-sm font-medium text-gray-600'>Role Type:</span>
+                    <span className='text-sm text-gray-900'>{getRoleTypeLabel(selectedAudition.roleType)}</span>
+                  </div>
+                  {selectedAudition.characterName && (
+                    <div className='flex justify-between'>
+                      <span className='text-sm font-medium text-gray-600'>Character Name:</span>
+                      <span className='text-sm text-gray-900'>{selectedAudition.characterName}</span>
+                    </div>
+                  )}
+                  {selectedAudition.characterDescription && (
+                    <div>
+                      <span className='text-sm font-medium text-gray-600 block mb-1'>Character Description:</span>
+                      <p className='text-sm text-gray-900'>{selectedAudition.characterDescription}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Description */}
+              {selectedAudition.description && (
+                <div>
+                  <h3 className='text-lg font-semibold text-gray-900 mb-3'>Description</h3>
+                  <p className='text-sm text-gray-700 leading-relaxed'>{selectedAudition.description}</p>
+                </div>
+              )}
+
+              {/* Requirements */}
+              <div>
+                <h3 className='text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2'>
+                  <Icon name='CheckCircle' size={20} className='text-amber-600' />
+                  Requirements
+                </h3>
+                <div className='bg-gray-50 rounded-xl p-4 space-y-2'>
+                  {selectedAudition.ageRangeMin && selectedAudition.ageRangeMax && (
+                    <div className='flex justify-between'>
+                      <span className='text-sm font-medium text-gray-600'>Age Range:</span>
+                      <span className='text-sm text-gray-900'>{selectedAudition.ageRangeMin} - {selectedAudition.ageRangeMax} years</span>
+                    </div>
+                  )}
+                  {selectedAudition.genderPreference && (
+                    <div className='flex justify-between'>
+                      <span className='text-sm font-medium text-gray-600'>Gender:</span>
+                      <span className='text-sm text-gray-900'>{selectedAudition.genderPreference}</span>
+                    </div>
+                  )}
+                  {selectedAudition.skillsRequired && selectedAudition.skillsRequired.length > 0 && (
+                    <div>
+                      <span className='text-sm font-medium text-gray-600 block mb-2'>Skills Required:</span>
+                      <div className='flex flex-wrap gap-2'>
+                        {selectedAudition.skillsRequired.map((skill, idx) => (
+                          <span key={idx} className='px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-medium'>
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Audition Details */}
+              <div>
+                <h3 className='text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2'>
+                  <Icon name='Calendar' size={20} className='text-amber-600' />
+                  Audition Details
+                </h3>
+                <div className='bg-gray-50 rounded-xl p-4 space-y-2'>
+                  <div className='flex justify-between'>
+                    <span className='text-sm font-medium text-gray-600'>Format:</span>
+                    <span className='text-sm text-gray-900'>{selectedAudition.auditionFormat}</span>
+                  </div>
+                  {selectedAudition.auditionLocation && (
+                    <div className='flex justify-between'>
+                      <span className='text-sm font-medium text-gray-600'>Location:</span>
+                      <span className='text-sm text-gray-900'>{selectedAudition.auditionLocation}</span>
+                    </div>
+                  )}
+                  {selectedAudition.auditionDate && (
+                    <div className='flex justify-between'>
+                      <span className='text-sm font-medium text-gray-600'>Audition Date:</span>
+                      <span className='text-sm text-gray-900'>{formatDate(selectedAudition.auditionDate)}</span>
+                    </div>
+                  )}
+                  {selectedAudition.applicationDeadline && (
+                    <div className='flex justify-between'>
+                      <span className='text-sm font-medium text-gray-600'>Application Deadline:</span>
+                      <span className='text-sm text-amber-700 font-semibold'>{formatDate(selectedAudition.applicationDeadline)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Compensation */}
+              {selectedAudition.compensationType && (
+                <div>
+                  <h3 className='text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2'>
+                    <Icon name='DollarSign' size={20} className='text-amber-600' />
+                    Compensation
+                  </h3>
+                  <div className='bg-gray-50 rounded-xl p-4 space-y-2'>
+                    <div className='flex justify-between'>
+                      <span className='text-sm font-medium text-gray-600'>Type:</span>
+                      <span className='text-sm text-gray-900'>{selectedAudition.compensationType}</span>
+                    </div>
+                    {selectedAudition.compensationDetails && (
+                      <div>
+                        <span className='text-sm font-medium text-gray-600 block mb-1'>Details:</span>
+                        <p className='text-sm text-gray-900'>{selectedAudition.compensationDetails}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className='sticky bottom-0 bg-white border-t border-gray-200 p-6'>
+              <button
+                onClick={handleCloseModal}
+                className='w-full px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg shadow-sm transition-colors duration-200'>
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

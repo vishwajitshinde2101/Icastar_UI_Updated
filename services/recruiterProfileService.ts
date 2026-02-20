@@ -54,3 +54,10 @@ export async function getRecruiterProfile(): Promise<Recruiter> {
   const dto: RecruiterProfileDto = payload?.data || payload;
   return mapDtoToRecruiter(dto);
 }
+
+export async function updateRecruiterProfile(data: Partial<RecruiterProfileDto>): Promise<Recruiter> {
+  const resp = await apiClient.put('/recruiter/dashboard/profile', data);
+  const payload = resp.data;
+  const dto: RecruiterProfileDto = payload?.data || payload;
+  return mapDtoToRecruiter(dto);
+}
