@@ -158,6 +158,12 @@ export const artistService = {
     const res = await api.put('/artists/profile', input)
     return res.data
   },
+
+  async submitFaceVerification(faceImageUrl: string): Promise<void> {
+    // TODO: uncomment when backend is ready
+    // await api.post('/artist/face-verification', { faceImageUrl })
+    console.log('Face verification submitted:', faceImageUrl)
+  },
 }
 
 export default artistService

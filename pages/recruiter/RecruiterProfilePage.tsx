@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
+import { toast } from 'react-toastify'
 import { Card } from '../../components/Card'
 import { Recruiter, VerificationStatus } from '../../types'
 import {
@@ -6,7 +7,8 @@ import {
   ClockIcon,
   ExclamationCircleIcon,
 } from '../../components/icons/IconComponents'
-import { getRecruiterProfile } from '@/services/recruiterProfileService'
+import { getRecruiterProfile, updateRecruiterProfile } from '@/services/recruiterProfileService'
+import uploadService from '@/services/uploadService'
 
 const initialRecruiterData: Recruiter = {
   name: 'Alex Morgan',
@@ -135,6 +137,9 @@ export const RecruiterProfilePage = () => {
   const [formData, setFormData] = useState<Recruiter>(recruiter)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -162,9 +167,55 @@ export const RecruiterProfilePage = () => {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleSave = () => {
-    // setRecruiterData(formData)
-    alert('Profile saved successfully!')
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const validation = uploadService.validateFile(file, 'image')
+    if (!validation.valid) {
+      toast.error(validation.error)
+      return
+    }
+
+    try {
+      setIsUploading(true)
+      setUploadProgress(0)
+      const fileUrl = await uploadService.uploadFile(file, 'PROFILE_PHOTO', setUploadProgress)
+      setFormData(prev => ({ ...prev, avatarUrl: fileUrl }))
+      toast.success('Photo uploaded! Click Save Changes to save.')
+    } catch (err: any) {
+      toast.error('Failed to upload photo. Please try again.')
+    } finally {
+      setIsUploading(false)
+      setUploadProgress(0)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const handleDeleteAvatar = () => {
+    setFormData(prev => ({ ...prev, avatarUrl: '' }))
+  }
+
+  const handleSave = async () => {
+    try {
+      setLoading(true)
+      const updated = await updateRecruiterProfile({
+        contactPersonName: formData.name,
+        designation: formData.title,
+        email: formData.email,
+        companyName: formData.companyName,
+        companyWebsite: formData.companyWebsite,
+        companyDescription: formData.companyBio,
+        companyLogoUrl: formData.avatarUrl,
+      })
+      setRecruiter(updated)
+      setFormData(updated)
+      toast.success('Profile saved successfully!')
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to save profile')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleCancel = () => {
@@ -195,18 +246,75 @@ export const RecruiterProfilePage = () => {
           </p>
 
           <div className='flex items-center gap-6 mb-8'>
-            <img
-              className='h-20 w-20 rounded-full object-cover'
-              src={formData.avatarUrl}
-              alt='Current avatar'
+            <input
+              type='file'
+              ref={fileInputRef}
+              className='hidden'
+              accept='image/jpeg,image/jpg,image/png,image/webp'
+              onChange={handleAvatarFileChange}
             />
+
+            {/* Avatar preview */}
+            <div className='relative flex-shrink-0'>
+              {formData.avatarUrl ? (
+                <img
+                  className='h-20 w-20 rounded-full object-cover ring-2 ring-gray-200'
+                  src={formData.avatarUrl}
+                  alt='Profile photo'
+                />
+              ) : (
+                <div className='h-20 w-20 rounded-full bg-gray-100 ring-2 ring-gray-200 flex items-center justify-center'>
+                  <svg className='h-10 w-10 text-gray-400' fill='currentColor' viewBox='0 0 24 24'>
+                    <path d='M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8c0 2.208-1.792 4-3.998 4-2.208 0-4-1.792-4-4s1.792-4 4-4c2.206 0 3.998 1.792 3.998 4z' />
+                  </svg>
+                </div>
+              )}
+              {isUploading && (
+                <div className='absolute inset-0 rounded-full bg-black/50 flex items-center justify-center'>
+                  <span className='text-white text-xs font-bold'>{uploadProgress}%</span>
+                </div>
+              )}
+            </div>
+
+            {/* Upload buttons */}
             <div>
-              <button className='px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors'>
-                Change Avatar
-              </button>
-              <p className='text-xs text-gray-500 mt-2'>
-                JPG, GIF or PNG. 1MB max.
-              </p>
+              {!formData.avatarUrl ? (
+                <button
+                  type='button'
+                  disabled={isUploading}
+                  onClick={() => fileInputRef.current?.click()}
+                  className='px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50'>
+                  Add Photo
+                </button>
+              ) : (
+                <div className='flex gap-2'>
+                  <button
+                    type='button'
+                    disabled={isUploading}
+                    onClick={() => fileInputRef.current?.click()}
+                    className='px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50'>
+                    {isUploading ? `Uploading... ${uploadProgress}%` : 'Change Photo'}
+                  </button>
+                  <button
+                    type='button'
+                    disabled={isUploading}
+                    onClick={handleDeleteAvatar}
+                    className='px-4 py-2 border border-red-200 rounded-lg text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50'>
+                    Delete Photo
+                  </button>
+                </div>
+              )}
+
+              {isUploading && (
+                <div className='mt-2 w-48 bg-gray-200 rounded-full h-1.5'>
+                  <div
+                    className='bg-primary h-1.5 rounded-full transition-all duration-300'
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              )}
+
+              <p className='text-xs text-gray-500 mt-2'>JPG, PNG or WebP. 5MB max.</p>
             </div>
           </div>
 
@@ -297,8 +405,9 @@ export const RecruiterProfilePage = () => {
         </button>
         <button
           onClick={handleSave}
-          className='inline-flex items-center px-6 py-2.5 border border-transparent text-sm font-semibold rounded-lg shadow-sm text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary'>
-          Save Changes
+          disabled={loading || isUploading}
+          className='inline-flex items-center px-6 py-2.5 border border-transparent text-sm font-semibold rounded-lg shadow-sm text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-60 disabled:cursor-not-allowed'>
+          {loading ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
     </div>

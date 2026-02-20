@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import Icon from '@/components/Icon'
 import artistService from '@/services/artistService'
+import uploadService from '@/services/uploadService'
 import { ImageUpload, DocumentUpload, VideoUpload } from '@/components/FileUpload'
 
 interface ArtistProfile {
@@ -74,6 +75,17 @@ const Profile: React.FC = () => {
   const [editedProfile, setEditedProfile] = useState<ArtistProfile | null>(null)
   const [saving, setSaving] = useState(false)
   const navigate = useNavigate()
+
+  // Face Verification state
+  const [isFaceModalOpen, setIsFaceModalOpen] = useState(false)
+  const [capturedImage, setCapturedImage] = useState<string | null>(null)
+  const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null)
+  const [faceVerifyStatus, setFaceVerifyStatus] = useState<'idle' | 'captured' | 'uploading' | 'submitted'>('idle')
+  const [cameraError, setCameraError] = useState<string | null>(null)
+  const [localFaceVerified, setLocalFaceVerified] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -257,6 +269,90 @@ const Profile: React.FC = () => {
       setEditedProfile({ ...editedProfile, dynamicFields: currentFields })
     }
   }
+
+  const openFaceModal = useCallback(async () => {
+    setIsFaceModalOpen(true)
+    setCapturedImage(null)
+    setCapturedBlob(null)
+    setFaceVerifyStatus('idle')
+    setCameraError(null)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+      }
+    } catch (err: any) {
+      setCameraError('Camera access denied. Please allow camera permission and try again.')
+    }
+  }, [])
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
+    }
+  }, [])
+
+  const closeFaceModal = useCallback(() => {
+    stopCamera()
+    setIsFaceModalOpen(false)
+    setCapturedImage(null)
+    setCapturedBlob(null)
+    setFaceVerifyStatus('idle')
+    setCameraError(null)
+  }, [stopCamera])
+
+  const capturePhoto = useCallback(() => {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!video || !canvas) return
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(video, 0, 0)
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9)
+    setCapturedImage(dataUrl)
+    setFaceVerifyStatus('captured')
+    canvas.toBlob(blob => {
+      if (blob) setCapturedBlob(blob)
+    }, 'image/jpeg', 0.9)
+    stopCamera()
+  }, [stopCamera])
+
+  const retakePhoto = useCallback(async () => {
+    setCapturedImage(null)
+    setCapturedBlob(null)
+    setFaceVerifyStatus('idle')
+    setCameraError(null)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+      }
+    } catch (err: any) {
+      setCameraError('Camera access denied.')
+    }
+  }, [])
+
+  const handleSubmitFaceVerification = useCallback(async () => {
+    if (!capturedBlob) return
+    try {
+      setFaceVerifyStatus('uploading')
+      const file = new File([capturedBlob], `face_${Date.now()}.jpg`, { type: 'image/jpeg' })
+      const fileUrl = await uploadService.uploadFile(file, 'FACE_VERIFICATION')
+      await artistService.submitFaceVerification(fileUrl)
+      setFaceVerifyStatus('submitted')
+      setLocalFaceVerified(true)
+      toast.success("Face verification submitted! We'll review and update your status.")
+      setTimeout(() => closeFaceModal(), 1500)
+    } catch (err: any) {
+      toast.error('Failed to submit face verification. Please try again.')
+      setFaceVerifyStatus('captured')
+    }
+  }, [capturedBlob, closeFaceModal])
 
   const handleViewDocument = (docType: string) => {
     toast.info(`Viewing ${docType} document`)
@@ -664,6 +760,7 @@ const Profile: React.FC = () => {
   const profileCompletion = calculateProfileCompletion()
 
   return (
+    <>
     <div className='max-w-6xl mx-auto px-4 py-8'>
       <div className='flex justify-between items-center mb-8'>
         <h1 className='text-3xl font-bold text-gray-900'>My Profile</h1>
@@ -953,14 +1050,24 @@ const Profile: React.FC = () => {
                   </p>
                 </div>
               </div>
-              <div className={`flex items-center p-3 rounded-lg ${profile.faceVerification ? 'bg-green-50' : 'bg-amber-50'}`}>
-                <div className={`p-2 rounded-full ${profile.faceVerification ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
-                  <Icon name={profile.faceVerification ? 'CheckCircle' : 'AlertCircle'} size={20} />
+              <div className={`flex items-center p-3 rounded-lg ${(profile.faceVerification || localFaceVerified) ? 'bg-green-50' : 'bg-amber-50'}`}>
+                <div className={`p-2 rounded-full ${(profile.faceVerification || localFaceVerified) ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                  <Icon name={(profile.faceVerification || localFaceVerified) ? 'CheckCircle' : 'AlertCircle'} size={20} />
                 </div>
-                <div className='ml-3'>
+                <div className='ml-3 flex-1'>
                   <p className='text-sm font-medium text-gray-900'>Face Verification</p>
-                  <p className='text-xs text-gray-500'>{profile.faceVerification ? 'Verified' : 'Pending'}</p>
+                  <p className='text-xs text-gray-500'>
+                    {profile.faceVerification ? 'Verified' : localFaceVerified ? 'Pending Review' : 'Not Verified'}
+                  </p>
                 </div>
+                {!profile.faceVerification && !localFaceVerified && (
+                  <button
+                    onClick={openFaceModal}
+                    className='ml-2 flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 px-3 py-1.5 rounded-lg transition-colors'>
+                    <Icon name='Camera' size={14} />
+                    Start
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1299,6 +1406,116 @@ const Profile: React.FC = () => {
         </div>
       </div>
     </div>
+
+    {/* Face Verification Modal */}
+    {isFaceModalOpen && (
+      <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4'>
+        <div className='bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden'>
+          {/* Header */}
+          <div className='flex items-center justify-between px-6 py-4 border-b border-gray-100'>
+            <div className='flex items-center gap-2'>
+              <Icon name='Camera' size={20} className='text-amber-500' />
+              <h3 className='text-lg font-semibold text-gray-900'>Face Verification</h3>
+            </div>
+            <button onClick={closeFaceModal} className='text-gray-400 hover:text-gray-600'>
+              <Icon name='X' size={20} />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className='p-6'>
+            {cameraError ? (
+              <div className='flex flex-col items-center gap-4 py-6 text-center'>
+                <div className='p-4 bg-red-100 rounded-full'>
+                  <Icon name='CameraOff' size={32} className='text-red-500' />
+                </div>
+                <p className='text-sm text-red-600'>{cameraError}</p>
+                <button
+                  onClick={retakePhoto}
+                  className='px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-lg transition-colors'>
+                  Try Again
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Camera / Preview */}
+                <div className='relative bg-black rounded-xl overflow-hidden mb-4' style={{ aspectRatio: '4/3' }}>
+                  {!capturedImage ? (
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className='w-full h-full object-cover'
+                    />
+                  ) : (
+                    <img src={capturedImage} alt='Captured' className='w-full h-full object-cover' />
+                  )}
+                  {/* Face guide overlay */}
+                  {!capturedImage && (
+                    <div className='absolute inset-0 flex items-center justify-center pointer-events-none'>
+                      <div className='w-48 h-56 border-4 border-amber-400 rounded-full opacity-60' />
+                    </div>
+                  )}
+                  {faceVerifyStatus === 'submitted' && (
+                    <div className='absolute inset-0 bg-green-500/80 flex items-center justify-center'>
+                      <Icon name='CheckCircle' size={64} className='text-white' />
+                    </div>
+                  )}
+                </div>
+
+                {/* Hidden canvas for capture */}
+                <canvas ref={canvasRef} className='hidden' />
+
+                {/* Instructions */}
+                {!capturedImage && (
+                  <p className='text-xs text-gray-500 text-center mb-4'>
+                    Center your face in the oval. Make sure your face is well-lit and clearly visible.
+                  </p>
+                )}
+
+                {/* Action Buttons */}
+                <div className='flex gap-3 justify-center'>
+                  {faceVerifyStatus === 'idle' && (
+                    <button
+                      onClick={capturePhoto}
+                      className='flex items-center gap-2 px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition-colors'>
+                      <Icon name='Camera' size={18} />
+                      Capture Photo
+                    </button>
+                  )}
+
+                  {faceVerifyStatus === 'captured' && (
+                    <>
+                      <button
+                        onClick={retakePhoto}
+                        className='flex items-center gap-2 px-5 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors'>
+                        <Icon name='RefreshCw' size={16} />
+                        Retake
+                      </button>
+                      <button
+                        onClick={handleSubmitFaceVerification}
+                        className='flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition-colors'>
+                        <Icon name='Send' size={16} />
+                        Submit
+                      </button>
+                    </>
+                  )}
+
+                  {faceVerifyStatus === 'uploading' && (
+                    <div className='flex items-center gap-2 text-amber-600'>
+                      <div className='animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-amber-500' />
+                      <span className='text-sm font-medium'>Submitting...</span>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
 

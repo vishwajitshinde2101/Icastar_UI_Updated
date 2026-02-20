@@ -643,9 +643,9 @@ export const PostJobPage = () => {
           </div>
         </Card>
 
-        <Card padding='none'>
-          <div className='overflow-x-auto'>
-            <table className='min-w-full divide-y divide-gray-200'>
+        <Card padding='none' className='min-h-[600px] flex flex-col'>
+          <div className='overflow-x-auto flex-1'>
+            <table className='min-w-full divide-y divide-gray-200 h-full'>
               <thead className='bg-gray-50'>
                 <tr>
                   <th
@@ -717,7 +717,7 @@ export const PostJobPage = () => {
                       <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
                         {formatDate(job.createdDate)}
                       </td>
-                      <td className='px-6 py-4 whitespace-nowrap text-right text-sm font-medium'>
+                      <td className='px-6 py-4 whitespace-nowrap text-right text-sm font-medium relative'>
                         <div
                           className='relative inline-block text-left'
                           ref={activeDropdown === job.id ? dropdownRef : null}>
@@ -731,7 +731,7 @@ export const PostJobPage = () => {
                             <DotsHorizontalIcon className='h-5 w-5 text-gray-500' />
                           </button>
                           {activeDropdown === job.id && (
-                            <div className='origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10'>
+                            <div className='origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50'>
                               <div
                                 className='py-1'
                                 role='menu'
