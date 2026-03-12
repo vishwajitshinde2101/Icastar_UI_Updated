@@ -46,12 +46,19 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
       setUploading(true)
       setProgress(0)
 
-      // Upload to S3
-      const fileUrl = await uploadService.uploadFile(
-        file,
-        uploadType,
-        (progressPercent) => setProgress(progressPercent)
-      )
+      let fileUrl: string
+      if (uploadType === 'ID_PROOF') {
+        fileUrl = await uploadService.uploadIdProof(
+          file,
+          (progressPercent) => setProgress(progressPercent)
+        )
+      } else {
+        fileUrl = await uploadService.uploadFile(
+          file,
+          uploadType,
+          (progressPercent) => setProgress(progressPercent)
+        )
+      }
 
       toast.success('Document uploaded successfully!')
       onUploadSuccess(fileUrl)

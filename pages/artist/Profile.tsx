@@ -48,6 +48,9 @@ interface ArtistProfile {
   maritalStatus?: string
   comfortableAreas?: string
   travelCities?: string
+  portfolioUrls?: string[]
+  videoUrl?: string
+  projectsWorked?: string[]
   hourlyRate?: number
   totalApplications?: number
   successfulHires?: number
@@ -87,99 +90,115 @@ const Profile: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const data = await artistService.getMyProfile()
-        if (!data) {
-          setProfile(null)
-          return
-        }
-        // Calculate age from dateOfBirth
-        const calculateAge = (dob: string | undefined): number | undefined => {
-          if (!dob) return undefined
-          const birthDate = new Date(dob)
-          const today = new Date()
-          let age = today.getFullYear() - birthDate.getFullYear()
-          const monthDiff = today.getMonth() - birthDate.getMonth()
-          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-            age--
-          }
-          return age
-        }
-
-        const normalized: ArtistProfile = {
-          category: data.category ?? data.artistType?.displayName ?? '',
-          fullName: data.fullName ?? '',
-          firstName: data.firstName,
-          lastName: data.lastName,
-          stageName: data.stageName,
-          email: data.email ?? '',
-          phone: data.phone ?? '',
-          gender: data.gender ?? '',
-          city: data.city ?? data.location ?? '',
-          languages: (() => {
-            try {
-              if (Array.isArray(data.languages)) {
-                return data.languages.join(', ')
-              }
-              if (Array.isArray(data.languagesSpoken)) {
-                return data.languagesSpoken.join(', ')
-              }
-              if (typeof data.languagesSpoken === 'string' && data.languagesSpoken.startsWith('[')) {
-                return JSON.parse(data.languagesSpoken).join(', ')
-              }
-              return (data.languages as string) ?? ''
-            } catch (e) {
-              console.error('Error parsing languages:', e)
-              return (data.languages as string) ?? ''
-            }
-          })(),
-          bio: data.bio ?? '',
-          profilePhoto: data.profilePhoto ?? data.avatarUrl ?? undefined,
-          coverPhoto: data.coverPhoto ?? undefined,
-          idProof: data.idProof ?? undefined,
-          idProofVerified: data.idProofVerified ?? false,
-          isVerifiedBadge: data.isVerifiedBadge,
-          isProfileComplete: data.isProfileComplete,
-          actorType: data.actorType,
-          age: data.age ?? calculateAge(data.dateOfBirth),
-          dateOfBirth: data.dateOfBirth,
-          height: data.height ?? undefined,
-          weight: data.weight ?? undefined,
-          hairColor: data.hairColor,
-          hairLength: data.hairLength,
-          hasTattoo: data.hasTattoo,
-          hasMole: data.hasMole,
-          shoeSize: data.shoeSize,
-          eyeColor: data.eyeColor,
-          complexion: data.complexion,
-          hasPassport: data.hasPassport,
-          danceStyles: data.danceStyles ?? undefined,
-          experienceYears: data.experienceYears ? String(data.experienceYears) : undefined,
-          danceVideo: data.danceVideo ?? undefined,
-          skills: Array.isArray(data.skills) ? data.skills.join(', ') : data.skills,
-          maritalStatus: data.maritalStatus,
-          comfortableAreas: Array.isArray(data.comfortableAreas) ? data.comfortableAreas.join(', ') : data.comfortableAreas,
-          travelCities: Array.isArray(data.travelCities) ? data.travelCities.join(', ') : data.travelCities,
-          hourlyRate: data.hourlyRate,
-          totalApplications: data.totalApplications,
-          successfulHires: data.successfulHires,
-          artistTypeId: data.artistType?.id ?? data.artistTypeId,
-          artistType: data.artistType,
-          dynamicFields: data.dynamicFields ?? [],
-        }
-        setProfile(normalized)
-      } catch (error) {
-        console.error('Error fetching profile:', error)
+  const fetchProfile = useCallback(async () => {
+    try {
+      const data = await artistService.getMyProfile()
+      if (!data) {
         setProfile(null)
-      } finally {
-        setLoading(false)
+        return
       }
-    }
+      // Calculate age from dateOfBirth
+      const calculateAge = (dob: string | undefined): number | undefined => {
+        if (!dob) return undefined
+        const birthDate = new Date(dob)
+        const today = new Date()
+        let age = today.getFullYear() - birthDate.getFullYear()
+        const monthDiff = today.getMonth() - birthDate.getMonth()
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age--
+        }
+        return age
+      }
 
-    fetchProfile()
+      const normalized: ArtistProfile = {
+        category: data.category ?? data.artistType?.displayName ?? '',
+        fullName: data.fullName ?? '',
+        firstName: data.firstName,
+        lastName: data.lastName,
+        stageName: data.stageName,
+        email: data.email ?? '',
+        phone: data.phone ?? '',
+        gender: data.gender ?? '',
+        city: data.city ?? data.location ?? '',
+        languages: (() => {
+          try {
+            if (Array.isArray(data.languages)) {
+              return data.languages.join(', ')
+            }
+            if (Array.isArray(data.languagesSpoken)) {
+              return data.languagesSpoken.join(', ')
+            }
+            if (typeof data.languagesSpoken === 'string' && data.languagesSpoken.startsWith('[')) {
+              return JSON.parse(data.languagesSpoken).join(', ')
+            }
+            return (data.languages as string) ?? ''
+          } catch (e) {
+            console.error('Error parsing languages:', e)
+            return (data.languages as string) ?? ''
+          }
+        })(),
+        bio: data.bio ?? '',
+        profilePhoto: data.profilePhoto ?? data.profileUrl ?? data.avatarUrl ?? undefined,
+        coverPhoto: data.coverPhoto ?? undefined,
+        idProof: data.idProof ?? undefined,
+        idProofVerified: data.idProofVerified ?? false,
+        faceVerification: data.faceVerification ?? undefined,
+        isVerifiedBadge: data.isVerifiedBadge,
+        isProfileComplete: data.isProfileComplete,
+        actorType: data.actorType,
+        age: data.age ?? calculateAge(data.dateOfBirth),
+        dateOfBirth: data.dateOfBirth,
+        height: data.height ?? undefined,
+        weight: data.weight ?? undefined,
+        hairColor: data.hairColor,
+        hairLength: data.hairLength,
+        hasTattoo: data.hasTattoo,
+        hasMole: data.hasMole,
+        shoeSize: data.shoeSize,
+        eyeColor: data.eyeColor,
+        complexion: data.complexion,
+        hasPassport: data.hasPassport,
+        danceStyles: data.danceStyles ?? undefined,
+        experienceYears: data.experienceYears ? String(data.experienceYears) : undefined,
+        danceVideo: data.danceVideo ?? undefined,
+        skills: Array.isArray(data.skills) ? data.skills.join(', ') : data.skills,
+        maritalStatus: data.maritalStatus,
+        comfortableAreas: Array.isArray(data.comfortableAreas) ? data.comfortableAreas.join(', ') : data.comfortableAreas,
+        travelCities: Array.isArray(data.travelCities) ? data.travelCities.join(', ') : data.travelCities,
+        portfolioUrls: (() => {
+          try {
+            const pu = data.portfolioUrls
+            if (typeof pu === 'string') return JSON.parse(pu)
+            return Array.isArray(pu) ? pu : []
+          } catch { return [] }
+        })(),
+        videoUrl: data.videoUrl,
+        projectsWorked: (() => {
+          try {
+            const pw = data.projectsWorked
+            if (typeof pw === 'string') return JSON.parse(pw)
+            return Array.isArray(pw) ? pw : []
+          } catch { return [] }
+        })(),
+        hourlyRate: data.hourlyRate,
+        totalApplications: data.totalApplications,
+        successfulHires: data.successfulHires,
+        artistTypeId: data.artistType?.id ?? data.artistTypeId,
+        artistType: data.artistType,
+        dynamicFields: data.dynamicFields ?? [],
+      }
+      setProfile(normalized)
+    } catch (error) {
+      console.error('Error fetching profile:', error)
+      setProfile(null)
+    } finally {
+      setLoading(false)
+    }
   }, [])
+
+  useEffect(() => {
+    fetchProfile()
+  }, [fetchProfile])
 
   const handleEditProfile = () => {
     setIsEditing(true)
@@ -235,14 +254,17 @@ const Profile: React.FC = () => {
         skills: editedProfile.skills ? editedProfile.skills.split(',').map(s => s.trim()) : undefined,
         comfortableAreas: editedProfile.comfortableAreas ? editedProfile.comfortableAreas.split(',').map(a => a.trim()) : undefined,
         travelCities: editedProfile.travelCities ? editedProfile.travelCities.split(',').map(c => c.trim()) : undefined,
+        portfolioUrls: editedProfile.portfolioUrls ?? [],
+        videoUrl: editedProfile.videoUrl,
+        projectsWorked: editedProfile.projectsWorked ?? [],
         hourlyRate: editedProfile.hourlyRate,
         dynamicFields: editedProfile.dynamicFields,
       }
 
       await artistService.updateMyProfile(payload)
-      setProfile(editedProfile)
       setIsEditing(false)
       toast.success('Profile updated successfully!')
+      await fetchProfile()
     } catch (error) {
       console.error('Error updating profile:', error)
       toast.error('Failed to update profile')
@@ -510,7 +532,7 @@ const Profile: React.FC = () => {
               <div className="space-y-4">
                 <VideoUpload
                   currentVideoUrl={currentProfile?.danceVideo}
-                  uploadType="AUDITION_VIDEO"
+                  uploadType="DANCE_SHOWREEL"
                   label="Upload Dance Showreel"
                   description="Show your best dance performance (max 100MB)"
                   onUploadSuccess={(fileUrl) => handleInputChange('danceVideo', fileUrl)}
@@ -723,6 +745,8 @@ const Profile: React.FC = () => {
       { key: 'weight', label: 'Weight', value: profile.weight },
       { key: 'profilePhoto', label: 'Photo', value: profile.profilePhoto },
       { key: 'hourlyRate', label: 'Hourly Rate', value: profile.hourlyRate },
+      { key: 'comfortableAreas', label: 'Comfortable Areas', value: profile.comfortableAreas },
+      { key: 'portfolioUrls', label: 'Portfolio Links', value: profile.portfolioUrls },
     ]
 
     // Add dynamic fields to completion check
@@ -811,12 +835,20 @@ const Profile: React.FC = () => {
                 />
               </div>
             ) : (
-              <div className='w-32 h-32 mx-auto mb-4 rounded-full overflow-hidden border-4 border-amber-100'>
-                <img
-                  src={currentProfile?.profilePhoto || '/default-avatar.png'}
-                  alt={currentProfile?.fullName}
-                  className='w-full h-full object-cover'
-                />
+              <div className='w-32 h-32 mx-auto mb-4 rounded-full overflow-hidden border-4 border-amber-400 bg-amber-50 flex items-center justify-center'>
+                {currentProfile?.profilePhoto ? (
+                  <img
+                    src={currentProfile.profilePhoto}
+                    alt={currentProfile?.fullName}
+                    className='w-full h-full object-cover'
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                      e.currentTarget.parentElement?.classList.add('show-icon')
+                    }}
+                  />
+                ) : (
+                  <Icon name='User' size={48} className='text-amber-400' />
+                )}
               </div>
             )}
 
@@ -1005,9 +1037,10 @@ const Profile: React.FC = () => {
             )}
           </div>
 
-          {/* Cover Photo Upload */}
-          {isEditing && (
-            <div className='bg-white rounded-xl p-6 shadow-sm'>
+          {/* Cover Photo */}
+          <div className='bg-white rounded-xl p-6 shadow-sm'>
+            <h3 className='text-lg font-semibold text-gray-800 mb-4'>Cover Photo</h3>
+            {isEditing ? (
               <ImageUpload
                 currentImageUrl={currentProfile?.coverPhoto}
                 uploadType="COVER_PHOTO"
@@ -1015,12 +1048,21 @@ const Profile: React.FC = () => {
                 aspectRatio="wide"
                 onUploadSuccess={(fileUrl) => handleInputChange('coverPhoto', fileUrl)}
               />
-            </div>
-          )}
+            ) : currentProfile?.coverPhoto ? (
+              <img
+                src={currentProfile.coverPhoto}
+                alt="Cover"
+                className='w-full h-40 object-cover rounded-lg'
+              />
+            ) : (
+              <p className='text-gray-500 text-sm'>No cover photo uploaded</p>
+            )}
+          </div>
 
-          {/* ID Proof Upload */}
-          {isEditing && (
-            <div className='bg-white rounded-xl p-6 shadow-sm'>
+          {/* ID Proof */}
+          <div className='bg-white rounded-xl p-6 shadow-sm'>
+            <h3 className='text-lg font-semibold text-gray-800 mb-4'>ID Proof</h3>
+            {isEditing ? (
               <DocumentUpload
                 currentDocumentUrl={currentProfile?.idProof}
                 uploadType="ID_PROOF"
@@ -1028,8 +1070,32 @@ const Profile: React.FC = () => {
                 description="Upload Aadhaar, PAN, Passport, or Driving License for verification"
                 onUploadSuccess={(fileUrl) => handleInputChange('idProof', fileUrl)}
               />
-            </div>
-          )}
+            ) : currentProfile?.idProof ? (
+              <div className='flex items-center justify-between p-3 border border-gray-200 rounded-lg'>
+                <div className='flex items-center gap-3'>
+                  <div className='p-2 bg-gray-100 rounded-lg text-gray-600'>
+                    <Icon name='FileText' size={20} />
+                  </div>
+                  <div>
+                    <p className='text-sm font-medium text-gray-900'>ID Document</p>
+                    <p className='text-xs text-gray-500'>
+                      {currentProfile.idProofVerified ? 'Verified ✓' : 'Pending Verification'}
+                    </p>
+                  </div>
+                </div>
+                <a
+                  href={currentProfile.idProof}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='text-amber-600 hover:text-amber-700 text-sm font-medium'
+                >
+                  View
+                </a>
+              </div>
+            ) : (
+              <p className='text-gray-500 text-sm'>No ID proof uploaded</p>
+            )}
+          </div>
 
           {/* Verification Badge */}
           <div className='bg-white rounded-xl p-6 shadow-sm'>
@@ -1057,10 +1123,19 @@ const Profile: React.FC = () => {
                 <div className='ml-3 flex-1'>
                   <p className='text-sm font-medium text-gray-900'>Face Verification</p>
                   <p className='text-xs text-gray-500'>
-                    {profile.faceVerification ? 'Verified' : localFaceVerified ? 'Pending Review' : 'Not Verified'}
+                    {profile.faceVerification ? 'Verified ✓' : localFaceVerified ? 'Pending Review' : 'Not Verified'}
                   </p>
                 </div>
-                {!profile.faceVerification && !localFaceVerified && (
+                {profile.faceVerification ? (
+                  <a
+                    href={profile.faceVerification}
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='ml-2 flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-green-600 hover:text-green-700 bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded-lg transition-colors'>
+                    <Icon name='Eye' size={14} />
+                    View
+                  </a>
+                ) : !localFaceVerified && (
                   <button
                     onClick={openFaceModal}
                     className='ml-2 flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 px-3 py-1.5 rounded-lg transition-colors'>
@@ -1355,11 +1430,150 @@ const Profile: React.FC = () => {
                   </p>
                 )}
               </div>
+
+              {/* Comfortable Areas */}
+              <div>
+                <label className='text-sm font-medium text-gray-700 block mb-1'>Comfortable Areas</label>
+                {isEditing ? (
+                  <input
+                    type='text'
+                    value={currentProfile?.comfortableAreas || ''}
+                    onChange={(e) => handleInputChange('comfortableAreas', e.target.value)}
+                    placeholder='e.g., Drama, Romance, Action'
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                  />
+                ) : (
+                  <p className='text-gray-600'>{currentProfile?.comfortableAreas || '-'}</p>
+                )}
+              </div>
+
+              {/* Travel Cities */}
+              <div className='md:col-span-2'>
+                <label className='text-sm font-medium text-gray-700 block mb-1'>Willing to Travel To</label>
+                {isEditing ? (
+                  <input
+                    type='text'
+                    value={currentProfile?.travelCities || ''}
+                    onChange={(e) => handleInputChange('travelCities', e.target.value)}
+                    placeholder='e.g., Mumbai, Delhi, Bangalore'
+                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                  />
+                ) : currentProfile?.travelCities ? (
+                  <div className='flex flex-wrap gap-2'>
+                    {currentProfile.travelCities.split(',').map((city, i) => (
+                      <span key={i} className='bg-blue-50 text-blue-700 text-xs px-2.5 py-1 rounded-full'>{city.trim()}</span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className='text-gray-600'>-</p>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Artist Type Specific Details */}
           {renderDynamicDetails()}
+
+          {/* Portfolio URLs */}
+          <div className='bg-white rounded-xl p-6 shadow-sm'>
+            <h3 className='text-lg font-semibold text-gray-800 mb-4'>Portfolio Links</h3>
+            {isEditing ? (
+              <div className='space-y-3'>
+                {(currentProfile?.portfolioUrls ?? []).map((url, i) => (
+                  <div key={i} className='flex gap-2'>
+                    <input
+                      type='url'
+                      value={url}
+                      onChange={(e) => {
+                        const updated = [...(editedProfile?.portfolioUrls ?? [])]
+                        updated[i] = e.target.value
+                        handleInputChange('portfolioUrls', updated)
+                      }}
+                      placeholder='https://...'
+                      className='flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm'
+                    />
+                    <button
+                      type='button'
+                      onClick={() => {
+                        const updated = (editedProfile?.portfolioUrls ?? []).filter((_, idx) => idx !== i)
+                        handleInputChange('portfolioUrls', updated)
+                      }}
+                      className='p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors'
+                    >
+                      <Icon name='Trash2' size={16} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type='button'
+                  onClick={() => handleInputChange('portfolioUrls', [...(editedProfile?.portfolioUrls ?? []), ''])}
+                  className='flex items-center gap-2 text-amber-600 hover:text-amber-700 text-sm font-medium'
+                >
+                  <Icon name='Plus' size={16} />
+                  Add Portfolio Link
+                </button>
+              </div>
+            ) : (currentProfile?.portfolioUrls?.length ?? 0) > 0 ? (
+              <div className='space-y-2'>
+                {currentProfile!.portfolioUrls!.map((url, i) => (
+                  <a
+                    key={i}
+                    href={url}
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='flex items-center gap-2 text-amber-600 hover:underline text-sm truncate'
+                  >
+                    <Icon name='ExternalLink' size={14} />
+                    {url}
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className='text-gray-500 text-sm'>No portfolio links added yet.</p>
+            )}
+          </div>
+
+          {/* Profile Video */}
+          <div className='bg-white rounded-xl p-6 shadow-sm'>
+            <h3 className='text-lg font-semibold text-gray-800 mb-4'>Profile Video</h3>
+            {isEditing ? (
+              <div className='space-y-4'>
+                <VideoUpload
+                  currentVideoUrl={currentProfile?.videoUrl}
+                  uploadType="AUDITION_VIDEO"
+                  label="Upload Profile Video"
+                  description="Introduction or showreel video (max 100MB)"
+                  onUploadSuccess={(fileUrl) => handleInputChange('videoUrl', fileUrl)}
+                  maxSizeMB={100}
+                />
+                <div className='text-center text-gray-500 text-sm'>OR</div>
+                <div>
+                  <label className='text-xs font-medium text-gray-500'>YouTube / Vimeo URL</label>
+                  <input
+                    type='url'
+                    value={currentProfile?.videoUrl || ''}
+                    onChange={(e) => handleInputChange('videoUrl', e.target.value)}
+                    placeholder='https://youtube.com/watch?v=...'
+                    className='w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                  />
+                </div>
+              </div>
+            ) : currentProfile?.videoUrl ? (
+              currentProfile.videoUrl.includes('youtube.com') || currentProfile.videoUrl.includes('youtu.be') || currentProfile.videoUrl.includes('vimeo.com') ? (
+                <iframe
+                  src={currentProfile.videoUrl}
+                  className='w-full h-64 rounded-lg'
+                  title='Profile Video'
+                  allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture'
+                  allowFullScreen
+                />
+              ) : (
+                <video src={currentProfile.videoUrl} controls className='w-full rounded-lg' />
+              )
+            ) : (
+              <p className='text-gray-500 text-sm'>No profile video added yet.</p>
+            )}
+          </div>
 
           {/* Documents Section */}
           <div className='bg-white rounded-xl p-6 shadow-sm'>

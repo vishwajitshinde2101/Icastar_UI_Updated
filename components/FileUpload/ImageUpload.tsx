@@ -47,12 +47,24 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
       setUploading(true)
       setProgress(0)
 
-      // Upload to S3
-      const fileUrl = await uploadService.uploadFile(
-        file,
-        uploadType,
-        (progressPercent) => setProgress(progressPercent)
-      )
+      let fileUrl: string
+      if (uploadType === 'PROFILE_PHOTO') {
+        fileUrl = await uploadService.uploadArtistProfilePhoto(
+          file,
+          (progressPercent) => setProgress(progressPercent)
+        )
+      } else if (uploadType === 'COVER_PHOTO') {
+        fileUrl = await uploadService.uploadCoverPhoto(
+          file,
+          (progressPercent) => setProgress(progressPercent)
+        )
+      } else {
+        fileUrl = await uploadService.uploadFile(
+          file,
+          uploadType,
+          (progressPercent) => setProgress(progressPercent)
+        )
+      }
 
       toast.success('Image uploaded successfully!')
       onUploadSuccess(fileUrl)

@@ -36,8 +36,10 @@ export interface ArtistProfile {
   skills?: string[] | string
   maritalStatus?: string
   comfortableAreas?: string[] | string
-  projectsWorked?: number
+  projectsWorked?: string[] | string
   travelCities?: string[] | string
+  portfolioUrls?: string[] | string
+  videoUrl?: string
   hourlyRate?: number
   isVerifiedBadge?: boolean
   isProfileComplete?: boolean
@@ -87,7 +89,7 @@ export const artistService = {
         : responseData.firstName || responseData.lastName || '',
       stageName: responseData.stageName,
       email: responseData.email,
-      phone: responseData.phone,
+      phone: responseData.phone ?? responseData.mobile,
       bio: responseData.bio,
       dateOfBirth: responseData.dateOfBirth,
       gender: responseData.gender,
@@ -123,6 +125,14 @@ export const artistService = {
       hasPassport: responseData.hasPassport,
       travelCities: responseData.travelCities,
       hourlyRate: responseData.hourlyRate,
+      profilePhoto: responseData.profileUrl ?? responseData.profilePhoto ?? responseData.avatarUrl,
+      coverPhoto: responseData.coverPhotoUrl ?? responseData.coverPhoto,
+      idProof: responseData.idProofUrl ?? responseData.idProof,
+      idProofVerified: responseData.idProofVerified ?? false,
+      videoUrl: responseData.videoUrl,
+      faceVerification: responseData.faceVerificationUrl ?? responseData.faceVerification,
+      danceVideo: responseData.danceShowreelUrl ?? responseData.danceVideo,
+      portfolioUrls: responseData.portfolioUrls,
       isVerifiedBadge: responseData.isVerifiedBadge,
       isProfileComplete: responseData.isProfileComplete,
       isOnboardingComplete: responseData.isOnboardingComplete,

@@ -1,7 +1,28 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import Icon from './Icon'
+import artistService from '@/services/artistService'
 
 const Navbar: React.FC = () => {
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null)
+  const [fullName, setFullName] = useState<string>('')
+
+  useEffect(() => {
+    // Read user name from localStorage
+    const stored = localStorage.getItem('user')
+    if (stored) {
+      try {
+        const user = JSON.parse(stored)
+        setFullName(user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim())
+      } catch {}
+    }
+
+    // Fetch profile photo from API
+    artistService.getMyProfile().then((data) => {
+      if (data?.profilePhoto) setProfilePhoto(data.profilePhoto)
+      if (!fullName && data?.fullName) setFullName(data.fullName)
+    }).catch(() => {})
+  }, [])
+
   return (
     <header className='flex-shrink-0 bg-white/30 backdrop-blur-sm h-20 flex items-center justify-between px-8 border-b border-purple-100'>
       <div className='flex items-center gap-4'>
@@ -20,13 +41,21 @@ const Navbar: React.FC = () => {
       </div>
       <div className='flex items-center gap-6'>
         <div className='flex items-center gap-3'>
-          <img
-            src='https://picsum.photos/seed/useravatar/40/40'
-            alt='User Avatar'
-            className='w-10 h-10 rounded-full'
-          />
+          <div className='w-10 h-10 rounded-full overflow-hidden border-2 border-amber-400 flex-shrink-0'>
+            {profilePhoto ? (
+              <img
+                src={profilePhoto}
+                alt={fullName || 'Profile'}
+                className='w-full h-full object-cover'
+              />
+            ) : (
+              <div className='w-full h-full bg-amber-100 flex items-center justify-center'>
+                <Icon name='User' size={18} className='text-amber-600' />
+              </div>
+            )}
+          </div>
           <div>
-            <p className='font-semibold text-sm'>Aria Sharma</p>
+            <p className='font-semibold text-sm'>{fullName || 'Artist'}</p>
             <p className='text-xs text-gray-500'>Artist</p>
           </div>
         </div>

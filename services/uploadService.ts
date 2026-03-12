@@ -1,6 +1,6 @@
-import apiClient from './apiClient'
+import apiClient, { uploadFile as apiUploadFile } from './apiClient'
 
-export type UploadType = 'PROFILE_PHOTO' | 'COVER_PHOTO' | 'ID_PROOF' | 'AUDITION_VIDEO' | 'AUDITION_THUMBNAIL' | 'PORTFOLIO_IMAGE' | 'PORTFOLIO_VIDEO' | 'FACE_VERIFICATION'
+export type UploadType = 'PROFILE_PHOTO' | 'COVER_PHOTO' | 'ID_PROOF' | 'AUDITION_VIDEO' | 'AUDITION_THUMBNAIL' | 'PORTFOLIO_IMAGE' | 'PORTFOLIO_VIDEO' | 'FACE_VERIFICATION' | 'DANCE_SHOWREEL'
 
 export interface PresignedUrlRequest {
   fileName: string
@@ -110,6 +110,54 @@ export const uploadService = {
       console.error('File upload failed:', error)
       throw error
     }
+  },
+
+  /**
+   * Upload artist profile photo directly to backend
+   */
+  async uploadArtistProfilePhoto(
+    file: File,
+    onProgress?: UploadProgressCallback
+  ): Promise<string> {
+    const response = await apiUploadFile('/upload/artist-profile-photo', file, onProgress)
+    const data = response.data.data || response.data
+    return data.profileUrl
+  },
+
+  /**
+   * Upload cover photo directly to backend
+   */
+  async uploadCoverPhoto(
+    file: File,
+    onProgress?: UploadProgressCallback
+  ): Promise<string> {
+    const response = await apiUploadFile('/upload/cover-photo', file, onProgress)
+    const data = response.data.data || response.data
+    return data.coverPhotoUrl
+  },
+
+  /**
+   * Upload ID proof directly to backend
+   */
+  async uploadIdProof(
+    file: File,
+    onProgress?: UploadProgressCallback
+  ): Promise<string> {
+    const response = await apiUploadFile('/upload/id-proof', file, onProgress)
+    const data = response.data.data || response.data
+    return data.idProofUrl
+  },
+
+  /**
+   * Upload dance showreel directly to backend
+   */
+  async uploadDanceShowreel(
+    file: File,
+    onProgress?: UploadProgressCallback
+  ): Promise<string> {
+    const response = await apiUploadFile('/upload/dance-showreel', file, onProgress)
+    const data = response.data.data || response.data
+    return data.videoUrl
   },
 
   /**
