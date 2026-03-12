@@ -1,8 +1,8 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 
 // Base API configuration
-const API_BASE_URL = 'https://app.icastar.com./api' // Replace with your API base URL
-// const API_BASE_URL = 'https://app.icastar.com./api'
+const API_BASE_URL = 'https://app.icastar.com/api' // Replace with your API base URL
+// const API_BASE_URL = 'https://app.icastar.com/api'
 
 // Create axios instance with default configuration
 const apiClient: AxiosInstance = axios.create({
