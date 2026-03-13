@@ -51,20 +51,12 @@ const VideoUpload: React.FC<VideoUploadProps> = ({
       setUploading(true)
       setProgress(0)
 
-      let fileUrl: string
-      if (uploadType === 'DANCE_SHOWREEL') {
-        fileUrl = await uploadService.uploadDanceShowreel(
-          file,
-          (progressPercent) => setProgress(progressPercent)
-        )
-      } else {
-        fileUrl = await uploadService.uploadFile(
-          file,
-          uploadType,
-          (progressPercent) => setProgress(progressPercent),
-          auditionId
-        )
-      }
+      const fileUrl = await uploadService.uploadFile(
+        file,
+        uploadType,
+        (progressPercent) => setProgress(progressPercent),
+        auditionId
+      )
 
       // Replace preview URL with actual S3 URL
       URL.revokeObjectURL(previewUrl)
