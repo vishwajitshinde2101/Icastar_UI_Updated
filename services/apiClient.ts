@@ -108,6 +108,7 @@ export const uploadFile = async (
   formData.append('file', file)
 
   return apiClient.post(url, formData, {
+    timeout: 300000, // 5 minutes for file uploads
     headers: {
       'Content-Type': 'multipart/form-data',
     },
