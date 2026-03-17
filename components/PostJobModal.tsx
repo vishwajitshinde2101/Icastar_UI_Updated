@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Job } from '../types';
 
-const InputField: React.FC<{ label: string, id: string, value: string | number, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void, type?: string, placeholder?: string, required?: boolean, min?: number }> = ({ label, id, value, onChange, type = 'text', placeholder, required = false, min }) => (
+const InputField: React.FC<{ label: string, id: string, value: string | number, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void, type?: string, placeholder?: string, required?: boolean, min?: number, error?: string }> = ({ label, id, value, onChange, type = 'text', placeholder, required = false, min, error }) => (
     <div>
         <label htmlFor={id} className="block text-sm font-medium text-gray-700">{label}</label>
         <div className="mt-1">
@@ -11,17 +11,18 @@ const InputField: React.FC<{ label: string, id: string, value: string | number, 
                 name={id}
                 id={id}
                 min={min}
-                className="block w-full rounded-lg border-gray-300 bg-white shadow-sm transition placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 sm:text-sm px-3 py-2.5"
+                className={`block w-full rounded-lg border bg-white shadow-sm transition placeholder:text-gray-400 focus:ring-2 sm:text-sm px-3 py-2.5 ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : 'border-gray-300 focus:border-primary focus:ring-primary/20'}`}
                 placeholder={placeholder}
                 required={required}
                 value={value}
                 onChange={onChange}
             />
         </div>
+        {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
 );
 
-const TextAreaField: React.FC<{ label: string, id: string, value: string, onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void, rows?: number, placeholder?: string }> = ({ label, id, value, onChange, rows = 4, placeholder }) => (
+const TextAreaField: React.FC<{ label: string, id: string, value: string, onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void, rows?: number, placeholder?: string, error?: string }> = ({ label, id, value, onChange, rows = 4, placeholder, error }) => (
     <div>
         <label htmlFor={id} className="block text-sm font-medium text-gray-700">{label}</label>
         <div className="mt-1">
@@ -29,12 +30,13 @@ const TextAreaField: React.FC<{ label: string, id: string, value: string, onChan
                 id={id}
                 name={id}
                 rows={rows}
-                className="block w-full rounded-lg border-gray-300 bg-white shadow-sm transition placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 sm:text-sm px-3 py-2.5"
+                className={`block w-full rounded-lg border bg-white shadow-sm transition placeholder:text-gray-400 focus:ring-2 sm:text-sm px-3 py-2.5 ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : 'border-gray-300 focus:border-primary focus:ring-primary/20'}`}
                 placeholder={placeholder}
                 value={value}
                 onChange={onChange}
             />
         </div>
+        {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
 );
 
@@ -44,20 +46,22 @@ const SelectField: React.FC<{
     value: string
     onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void
     children: React.ReactNode
-}> = ({ label, id, value, onChange, children }) => (
+    error?: string
+}> = ({ label, id, value, onChange, children, error }) => (
     <div>
         <label htmlFor={id} className="block text-sm font-medium text-gray-700">{label}</label>
         <div className="mt-1">
             <select
                 id={id}
                 name={id}
-                className="block w-full rounded-lg border-gray-300 bg-white shadow-sm transition focus:border-primary focus:ring-2 focus:ring-primary/20 sm:text-sm px-3 py-2.5 pr-10"
+                className={`block w-full rounded-lg border bg-white shadow-sm transition focus:ring-2 sm:text-sm px-3 py-2.5 pr-10 ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : 'border-gray-300 focus:border-primary focus:ring-primary/20'}`}
                 value={value}
                 onChange={onChange}
             >
                 {children}
             </select>
         </div>
+        {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
 );
 
@@ -94,8 +98,21 @@ interface PostJobModalProps {
     jobToEdit: Job | null;
 }
 
+interface FormErrors {
+    title?: string;
+    description?: string;
+    requirements?: string;
+    skills?: string;
+    location?: string;
+    budgetMin?: string;
+    budgetMax?: string;
+    durationDays?: string;
+    applicationDeadline?: string;
+}
+
 export const PostJobModal: React.FC<PostJobModalProps> = ({ isOpen, onClose, onSave, jobToEdit }) => {
     const [formData, setFormData] = useState<Partial<Job>>({});
+    const [errors, setErrors] = useState<FormErrors>({});
 
     useEffect(() => {
         if (jobToEdit) {
@@ -112,9 +129,44 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ isOpen, onClose, onS
                 isUrgent: false
             });
         }
+        setErrors({});
     }, [jobToEdit, isOpen]);
 
     if (!isOpen) return null;
+
+    const validate = (): FormErrors => {
+        const newErrors: FormErrors = {};
+
+        if (!formData.title?.trim()) {
+            newErrors.title = 'Job Title is required';
+        }
+        if (!formData.description?.trim()) {
+            newErrors.description = 'Job Description is required';
+        }
+        if (!formData.requirements?.trim()) {
+            newErrors.requirements = 'Requirements is required';
+        }
+        if (!formData.skills?.trim()) {
+            newErrors.skills = 'Required Skills is required';
+        }
+        if (!formData.isRemote && !formData.location?.trim()) {
+            newErrors.location = 'Location is required';
+        }
+        if (formData.budgetMin === undefined || formData.budgetMin === null || String(formData.budgetMin) === '') {
+            newErrors.budgetMin = 'Budget Min is required';
+        }
+        if (formData.budgetMax === undefined || formData.budgetMax === null || String(formData.budgetMax) === '') {
+            newErrors.budgetMax = 'Budget Max is required';
+        }
+        if (formData.durationDays === undefined || formData.durationDays === null || String(formData.durationDays) === '') {
+            newErrors.durationDays = 'Contract Duration is required';
+        }
+        if (!formData.applicationDeadline?.trim()) {
+            newErrors.applicationDeadline = 'Application Deadline is required';
+        }
+
+        return newErrors;
+    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
@@ -123,18 +175,25 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ isOpen, onClose, onS
             const checked = (e.target as HTMLInputElement).checked;
             setFormData(prev => ({ ...prev, [name]: checked }));
         } else if (type === 'number') {
-            // keep as string for input, logic will handle conversion on submit if needed
-            // but for types sake in Job interface it is number.
-            // Let's store as number if value is present
             const numVal = value === '' ? undefined : parseFloat(value);
             setFormData(prev => ({ ...prev, [name]: numVal }));
         } else {
             setFormData(prev => ({ ...prev, [name]: value }));
         }
+
+        // Clear error for the field being changed
+        if (errors[name as keyof FormErrors]) {
+            setErrors(prev => ({ ...prev, [name]: undefined }));
+        }
     };
 
     const handleFormSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        const validationErrors = validate();
+        if (Object.keys(validationErrors).length > 0) {
+            setErrors(validationErrors);
+            return;
+        }
         onSave(formData as Job);
         onClose();
     };
@@ -160,7 +219,7 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ isOpen, onClose, onS
                             <h3 className="text-lg font-semibold leading-6 text-gray-900 border-b pb-2 mb-4">Job Details</h3>
                             <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
                                 <div className="sm:col-span-1">
-                                    <InputField label="Job Title" id="title" placeholder="e.g., Senior Product Designer" required value={formData.title || ''} onChange={handleChange} />
+                                    <InputField label="Job Title" id="title" placeholder="e.g., Senior Product Designer" value={formData.title || ''} onChange={handleChange} error={errors.title} />
                                 </div>
                                 <div className="sm:col-span-1">
                                     <SelectField label="Job Type" id="type" value={formData.type || 'Full-time'} onChange={handleChange}>
@@ -192,7 +251,7 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ isOpen, onClose, onS
 
                                         {!formData.isRemote && (
                                             <div className="flex-1">
-                                                <InputField label="Location" id="location" placeholder="e.g., New York, NY" value={formData.location || ''} onChange={handleChange} />
+                                                <InputField label="Location" id="location" placeholder="e.g., New York, NY" value={formData.location || ''} onChange={handleChange} error={errors.location} />
                                             </div>
                                         )}
                                     </div>
@@ -205,10 +264,10 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ isOpen, onClose, onS
                             <h3 className="text-lg font-semibold leading-6 text-gray-900 border-b pb-2 mb-4">Description & Requirements</h3>
                             <div className="grid grid-cols-1 gap-y-6 gap-x-4">
                                 <div>
-                                    <TextAreaField label="Job Description" id="description" placeholder="Describe the role, responsibilities, and what you're looking for." value={formData.description || ''} onChange={handleChange} />
+                                    <TextAreaField label="Job Description" id="description" placeholder="Describe the role, responsibilities, and what you're looking for." value={formData.description || ''} onChange={handleChange} error={errors.description} />
                                 </div>
                                 <div>
-                                    <TextAreaField label="Requirements" id="requirements" placeholder="List specific requirements, qualifications, and nice-to-haves." value={formData.requirements || ''} onChange={handleChange} />
+                                    <TextAreaField label="Requirements" id="requirements" placeholder="List specific requirements, qualifications, and nice-to-haves." value={formData.requirements || ''} onChange={handleChange} error={errors.requirements} />
                                 </div>
                             </div>
                         </div>
@@ -218,7 +277,7 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ isOpen, onClose, onS
                             <h3 className="text-lg font-semibold leading-6 text-gray-900 border-b pb-2 mb-4">Skills & Compensation</h3>
                             <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
                                 <div className="sm:col-span-6">
-                                    <InputField label="Required Skills" id="skills" placeholder="e.g., Figma, UI Design, Prototyping (comma-separated)" value={formData.skills || ''} onChange={handleChange} />
+                                    <InputField label="Required Skills" id="skills" placeholder="e.g., Figma, UI Design, Prototyping (comma-separated)" value={formData.skills || ''} onChange={handleChange} error={errors.skills} />
                                 </div>
 
                                 <div className="sm:col-span-2">
@@ -230,14 +289,14 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ isOpen, onClose, onS
                                     </SelectField>
                                 </div>
                                 <div className="sm:col-span-2">
-                                    <InputField label="Budget Min" id="budgetMin" type="number" placeholder="Min" value={formData.budgetMin ?? ''} onChange={handleChange} min={0} />
+                                    <InputField label="Budget Min" id="budgetMin" type="number" placeholder="Min" value={formData.budgetMin ?? ''} onChange={handleChange} min={0} error={errors.budgetMin} />
                                 </div>
                                 <div className="sm:col-span-2">
-                                    <InputField label="Budget Max" id="budgetMax" type="number" placeholder="Max" value={formData.budgetMax ?? ''} onChange={handleChange} min={0} />
+                                    <InputField label="Budget Max" id="budgetMax" type="number" placeholder="Max" value={formData.budgetMax ?? ''} onChange={handleChange} min={0} error={errors.budgetMax} />
                                 </div>
 
                                 <div className="sm:col-span-3">
-                                    <InputField label="Contract Duration (Days)" id="durationDays" type="number" placeholder="e.g., 30" value={formData.durationDays ?? ''} onChange={handleChange} min={1} />
+                                    <InputField label="Contract Duration (Days)" id="durationDays" type="number" placeholder="e.g., 30" value={formData.durationDays ?? ''} onChange={handleChange} min={1} error={errors.durationDays} />
                                 </div>
                             </div>
                         </div>
@@ -247,7 +306,7 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ isOpen, onClose, onS
                             <h3 className="text-lg font-semibold leading-6 text-gray-900 border-b pb-2 mb-4">Hiring Details</h3>
                             <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2 lg:grid-cols-4 items-end">
                                 <div className="sm:col-span-2">
-                                    <InputField label="Application Deadline" id="applicationDeadline" type="date" value={formData.applicationDeadline || ''} onChange={handleChange} />
+                                    <InputField label="Application Deadline" id="applicationDeadline" type="date" value={formData.applicationDeadline || ''} onChange={handleChange} error={errors.applicationDeadline} />
                                 </div>
                                 <div className="sm:col-span-2">
                                     <CheckboxField
