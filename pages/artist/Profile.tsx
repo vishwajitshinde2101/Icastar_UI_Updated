@@ -294,20 +294,21 @@ const Profile: React.FC = () => {
           text: shareText,
         }
 
-        // Share cover photo as image file (appears at top), text as caption below
+        // Try to share with cover photo image + text together
         if (profile.coverPhoto) {
           try {
             const res = await fetch(profile.coverPhoto, { mode: 'cors', cache: 'no-store' })
             if (res.ok) {
               const blob = await res.blob()
               const file = new File([blob], 'cover-photo.jpg', { type: blob.type || 'image/jpeg' })
-              if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
-                shareData.files = [file]
-              }
+              // Try image + text share first
+              await navigator.share({ ...shareData, files: [file] })
+              return
             }
-          } catch { /* proceed without image */ }
+          } catch { /* fallthrough to text-only */ }
         }
 
+        // Fallback: text only
         await navigator.share(shareData)
       } catch (err: any) {
         if (err?.name !== 'AbortError') {
