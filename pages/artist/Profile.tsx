@@ -200,6 +200,121 @@ const Profile: React.FC = () => {
     fetchProfile()
   }, [fetchProfile])
 
+  const handleShareProfile = async () => {
+    if (!profile) return
+
+    const lines: string[] = []
+
+    // Header - Name & Stage Name
+    lines.push(`✨ ${profile.fullName} ✨`)
+    if (profile.stageName) lines.push(`✨ ${profile.stageName} ✨`)
+
+    // Basic Info
+    if (profile.category) lines.push(`🎭 ${profile.category}`)
+    if (profile.gender) lines.push(`👤 Gender: ${profile.gender}`)
+    if (profile.age) lines.push(`🎂 Age: ${profile.age} yrs`)
+    if (profile.hourlyRate) lines.push(`💰 Per Day Rate: ₹${profile.hourlyRate}`)
+    if (profile.city) lines.push(`📍 Location: ${profile.city}`)
+    if (profile.languages) lines.push(`🗣️ Languages: ${profile.languages}`)
+
+    // About
+    if (profile.bio) {
+      lines.push(``)
+      lines.push(`📝 *About:*`)
+      lines.push(profile.bio)
+    }
+
+    // Skills & Details
+    const detailLines: string[] = []
+    if (profile.skills) detailLines.push(`🎯 Skills: ${profile.skills}`)
+    if (profile.experienceYears) detailLines.push(`📅 Experience: ${profile.experienceYears} years`)
+    if (profile.height) detailLines.push(`📏 Height: ${profile.height}`)
+    if (profile.weight) detailLines.push(`⚖️ Weight: ${profile.weight} kg`)
+    if (profile.hairColor) detailLines.push(`💇 Hair Color: ${profile.hairColor}`)
+    if (profile.hairLength) detailLines.push(`💈 Hair Length: ${profile.hairLength}`)
+    if (profile.eyeColor) detailLines.push(`👁️ Eye Color: ${profile.eyeColor}`)
+    if (profile.complexion) detailLines.push(`🌟 Complexion: ${profile.complexion}`)
+    if (profile.shoeSize) detailLines.push(`👟 Shoe Size: ${profile.shoeSize}`)
+    if (profile.danceStyles && profile.danceStyles.length > 0) detailLines.push(`💃 Dance Styles: ${profile.danceStyles.join(', ')}`)
+    if (profile.comfortableAreas) detailLines.push(`✅ Comfortable Areas: ${profile.comfortableAreas}`)
+    if (profile.travelCities) detailLines.push(`✈️ Willing to Travel: ${profile.travelCities}`)
+    if (profile.maritalStatus) detailLines.push(`💍 Marital Status: ${profile.maritalStatus}`)
+
+    if (detailLines.length > 0) {
+      lines.push(``)
+      lines.push(`✅ *Details & Attributes:*`)
+      detailLines.forEach(d => lines.push(d))
+    }
+
+    // Portfolio / Media Links
+    const hasPortfolio = profile.portfolioUrls && profile.portfolioUrls.length > 0
+    const hasVideo = !!profile.videoUrl || !!profile.danceVideo
+    if (hasPortfolio || hasVideo) {
+      lines.push(``)
+      lines.push(`🔗 *Media Links:*`)
+      if (profile.videoUrl) lines.push(`🎬 Profile Video:\n${profile.videoUrl}`)
+      if (profile.danceVideo) lines.push(`💃 Dance Showreel:\n${profile.danceVideo}`)
+      if (profile.portfolioUrls && profile.portfolioUrls.length > 0) {
+        lines.push(`🖼️ Portfolio:`)
+        profile.portfolioUrls.forEach(url => lines.push(url))
+      }
+    }
+
+    // Contact
+    lines.push(``)
+    lines.push(`📞 *Contact:*`)
+    if (profile.phone) lines.push(`📱 Phone: ${profile.phone}`)
+    if (profile.email) lines.push(`📧 Email: ${profile.email}`)
+
+    const shareText = lines.join('\n')
+
+    // Fetch images as File objects for native sharing
+    const fetchImageFile = async (url: string, filename: string): Promise<File | null> => {
+      try {
+        const res = await fetch(url)
+        const blob = await res.blob()
+        return new File([blob], filename, { type: blob.type })
+      } catch {
+        return null
+      }
+    }
+
+    if (navigator.share) {
+      try {
+        const files: File[] = []
+
+        if (profile.profilePhoto) {
+          const f = await fetchImageFile(profile.profilePhoto, 'profile-photo.jpg')
+          if (f) files.push(f)
+        }
+        if (profile.coverPhoto) {
+          const f = await fetchImageFile(profile.coverPhoto, 'cover-photo.jpg')
+          if (f) files.push(f)
+        }
+
+        const shareData: ShareData = {
+          title: `${profile.fullName} - Artist Profile`,
+          text: shareText,
+        }
+
+        if (files.length > 0 && navigator.canShare && navigator.canShare({ files })) {
+          shareData.files = files
+        }
+
+        await navigator.share(shareData)
+      } catch (err) {
+        // user cancelled share
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareText)
+        toast.success('Profile copied to clipboard!')
+      } catch {
+        toast.error('Could not copy profile.')
+      }
+    }
+  }
+
   const handleEditProfile = () => {
     setIsEditing(true)
     setEditedProfile(profile ? { ...profile } : null)
@@ -808,13 +923,22 @@ const Profile: React.FC = () => {
               </button>
             </>
           ) : (
-            <button
-              onClick={handleEditProfile}
-              className='flex items-center gap-2 bg-white border border-amber-600 text-amber-600 hover:bg-amber-50 px-4 py-2 rounded-lg transition-colors'
-            >
-              <Icon name='Edit' size={16} />
-              Edit Profile
-            </button>
+            <>
+              <button
+                onClick={handleShareProfile}
+                className='flex items-center gap-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg transition-colors'
+              >
+                <Icon name='Share2' size={16} />
+                Share Profile
+              </button>
+              <button
+                onClick={handleEditProfile}
+                className='flex items-center gap-2 bg-white border border-amber-600 text-amber-600 hover:bg-amber-50 px-4 py-2 rounded-lg transition-colors'
+              >
+                <Icon name='Edit' size={16} />
+                Edit Profile
+              </button>
+            </>
           )}
         </div>
       </div>
