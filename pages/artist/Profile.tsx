@@ -203,12 +203,26 @@ const Profile: React.FC = () => {
   const handleShareProfile = async () => {
     if (!profile) return
 
-    const lines: string[] = []
+    // Parse JSON array strings like '["drama"]' into clean text
+    const parseArrayField = (val?: string): string => {
+      if (!val) return ''
+      try {
+        const parsed = JSON.parse(val)
+        if (Array.isArray(parsed)) {
+          return parsed.map((item: any) => {
+            if (typeof item === 'string' && item.startsWith('[')) {
+              try { const inner = JSON.parse(item); return Array.isArray(inner) ? inner.join(', ') : item } catch { return item }
+            }
+            return item
+          }).join(', ')
+        }
+        return String(parsed)
+      } catch {
+        return val
+      }
+    }
 
-    // Images at the very top as URLs (always visible in share preview)
-    if (profile.coverPhoto) lines.push(profile.coverPhoto)
-    if (profile.profilePhoto) lines.push(profile.profilePhoto)
-    if (profile.coverPhoto || profile.profilePhoto) lines.push(``)
+    const lines: string[] = []
 
     // Header - Name & Stage Name
     lines.push(`✨ ${profile.fullName} ✨`)
@@ -231,7 +245,7 @@ const Profile: React.FC = () => {
 
     // Skills & Details
     const detailLines: string[] = []
-    if (profile.skills) detailLines.push(`🎯 Skills: ${profile.skills}`)
+    if (profile.skills) detailLines.push(`🎯 Skills: ${parseArrayField(profile.skills)}`)
     if (profile.experienceYears) detailLines.push(`📅 Experience: ${profile.experienceYears} years`)
     if (profile.height) detailLines.push(`📏 Height: ${profile.height}`)
     if (profile.weight) detailLines.push(`⚖️ Weight: ${profile.weight} kg`)
@@ -241,8 +255,8 @@ const Profile: React.FC = () => {
     if (profile.complexion) detailLines.push(`🌟 Complexion: ${profile.complexion}`)
     if (profile.shoeSize) detailLines.push(`👟 Shoe Size: ${profile.shoeSize}`)
     if (profile.danceStyles && profile.danceStyles.length > 0) detailLines.push(`💃 Dance Styles: ${profile.danceStyles.join(', ')}`)
-    if (profile.comfortableAreas) detailLines.push(`✅ Comfortable Areas: ${profile.comfortableAreas}`)
-    if (profile.travelCities) detailLines.push(`✈️ Willing to Travel: ${profile.travelCities}`)
+    if (profile.comfortableAreas) detailLines.push(`✅ Comfortable Areas: ${parseArrayField(profile.comfortableAreas)}`)
+    if (profile.travelCities) detailLines.push(`✈️ Willing to Travel: ${parseArrayField(profile.travelCities)}`)
     if (profile.maritalStatus) detailLines.push(`💍 Marital Status: ${profile.maritalStatus}`)
 
     if (detailLines.length > 0) {
@@ -273,60 +287,25 @@ const Profile: React.FC = () => {
 
     const shareText = lines.join('\n')
 
-    // Load image via canvas (works for public S3 URLs without CORS fetch issues)
-    const imageUrlToFile = (url: string, filename: string): Promise<File | null> =>
-      new Promise((resolve) => {
-        const img = new Image()
-        img.crossOrigin = 'anonymous'
-        img.onload = () => {
-          try {
-            const canvas = document.createElement('canvas')
-            canvas.width = img.naturalWidth
-            canvas.height = img.naturalHeight
-            const ctx = canvas.getContext('2d')
-            if (!ctx) { resolve(null); return }
-            ctx.drawImage(img, 0, 0)
-            canvas.toBlob(
-              (blob) => {
-                if (blob) resolve(new File([blob], `${filename}.jpg`, { type: 'image/jpeg' }))
-                else resolve(null)
-              },
-              'image/jpeg',
-              0.92,
-            )
-          } catch {
-            resolve(null)
-          }
-        }
-        img.onerror = () => resolve(null)
-        img.src = url
-      })
-
     if (navigator.share) {
       try {
-        const files: File[] = []
-
-        // coverPhotoUrl first (top banner), then profileUrl
-        if (profile.coverPhoto) {
-          const f = await imageUrlToFile(profile.coverPhoto, 'cover-photo')
-          if (f) files.push(f)
-        }
-        if (profile.profilePhoto) {
-          const f = await imageUrlToFile(profile.profilePhoto, 'profile-photo')
-          if (f) files.push(f)
-        }
-
         const shareData: ShareData = {
           title: `${profile.fullName} - Artist Profile`,
           text: shareText,
         }
 
-        if (
-          files.length > 0 &&
-          typeof navigator.canShare === 'function' &&
-          navigator.canShare({ files })
-        ) {
-          shareData.files = files
+        // Share cover photo as image file (appears at top), text as caption below
+        if (profile.coverPhoto) {
+          try {
+            const res = await fetch(profile.coverPhoto, { mode: 'cors', cache: 'no-store' })
+            if (res.ok) {
+              const blob = await res.blob()
+              const file = new File([blob], 'cover-photo.jpg', { type: blob.type || 'image/jpeg' })
+              if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+                shareData.files = [file]
+              }
+            }
+          } catch { /* proceed without image */ }
         }
 
         await navigator.share(shareData)
