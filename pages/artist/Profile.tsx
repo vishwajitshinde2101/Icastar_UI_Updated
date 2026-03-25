@@ -205,6 +205,11 @@ const Profile: React.FC = () => {
 
     const lines: string[] = []
 
+    // Images at the very top as URLs (always visible in share preview)
+    if (profile.coverPhoto) lines.push(profile.coverPhoto)
+    if (profile.profilePhoto) lines.push(profile.profilePhoto)
+    if (profile.coverPhoto || profile.profilePhoto) lines.push(``)
+
     // Header - Name & Stage Name
     lines.push(`✨ ${profile.fullName} ✨`)
     if (profile.stageName) lines.push(`✨ ${profile.stageName} ✨`)
@@ -268,27 +273,46 @@ const Profile: React.FC = () => {
 
     const shareText = lines.join('\n')
 
-    // Fetch images as File objects for native sharing
-    const fetchImageFile = async (url: string, filename: string): Promise<File | null> => {
-      try {
-        const res = await fetch(url)
-        const blob = await res.blob()
-        return new File([blob], filename, { type: blob.type })
-      } catch {
-        return null
-      }
-    }
+    // Load image via canvas (works for public S3 URLs without CORS fetch issues)
+    const imageUrlToFile = (url: string, filename: string): Promise<File | null> =>
+      new Promise((resolve) => {
+        const img = new Image()
+        img.crossOrigin = 'anonymous'
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas')
+            canvas.width = img.naturalWidth
+            canvas.height = img.naturalHeight
+            const ctx = canvas.getContext('2d')
+            if (!ctx) { resolve(null); return }
+            ctx.drawImage(img, 0, 0)
+            canvas.toBlob(
+              (blob) => {
+                if (blob) resolve(new File([blob], `${filename}.jpg`, { type: 'image/jpeg' }))
+                else resolve(null)
+              },
+              'image/jpeg',
+              0.92,
+            )
+          } catch {
+            resolve(null)
+          }
+        }
+        img.onerror = () => resolve(null)
+        img.src = url
+      })
 
     if (navigator.share) {
       try {
         const files: File[] = []
 
-        if (profile.profilePhoto) {
-          const f = await fetchImageFile(profile.profilePhoto, 'profile-photo.jpg')
+        // coverPhotoUrl first (top banner), then profileUrl
+        if (profile.coverPhoto) {
+          const f = await imageUrlToFile(profile.coverPhoto, 'cover-photo')
           if (f) files.push(f)
         }
-        if (profile.coverPhoto) {
-          const f = await fetchImageFile(profile.coverPhoto, 'cover-photo.jpg')
+        if (profile.profilePhoto) {
+          const f = await imageUrlToFile(profile.profilePhoto, 'profile-photo')
           if (f) files.push(f)
         }
 
@@ -297,13 +321,19 @@ const Profile: React.FC = () => {
           text: shareText,
         }
 
-        if (files.length > 0 && navigator.canShare && navigator.canShare({ files })) {
+        if (
+          files.length > 0 &&
+          typeof navigator.canShare === 'function' &&
+          navigator.canShare({ files })
+        ) {
           shareData.files = files
         }
 
         await navigator.share(shareData)
-      } catch (err) {
-        // user cancelled share
+      } catch (err: any) {
+        if (err?.name !== 'AbortError') {
+          toast.error('Could not share profile.')
+        }
       }
     } else {
       try {
@@ -900,959 +930,959 @@ const Profile: React.FC = () => {
 
   return (
     <>
-    <div className='max-w-6xl mx-auto px-4 py-8'>
-      <div className='flex justify-between items-center mb-8'>
-        <h1 className='text-3xl font-bold text-gray-900'>My Profile</h1>
-        <div className='flex gap-3'>
-          {isEditing ? (
-            <>
-              <button
-                onClick={handleCancelEdit}
-                className='flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg transition-colors font-semibold'
-              >
-                <Icon name='X' size={16} />
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveProfile}
-                disabled={saving}
-                className='flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg transition-colors font-semibold disabled:opacity-50'
-              >
-                <Icon name='Save' size={16} />
-                {saving ? 'Saving...' : 'Save Changes'}
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={handleShareProfile}
-                className='flex items-center gap-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg transition-colors'
-              >
-                <Icon name='Share2' size={16} />
-                Share Profile
-              </button>
-              <button
-                onClick={handleEditProfile}
-                className='flex items-center gap-2 bg-white border border-amber-600 text-amber-600 hover:bg-amber-50 px-4 py-2 rounded-lg transition-colors'
-              >
-                <Icon name='Edit' size={16} />
-                Edit Profile
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
-        {/* Left Column - Profile Card */}
-        <div className='lg:col-span-1 space-y-6'>
-          <div className='bg-white rounded-xl p-6 shadow-sm text-center'>
-            {/* Profile Photo Upload in Edit Mode */}
+      <div className='max-w-6xl mx-auto px-4 py-8'>
+        <div className='flex justify-between items-center mb-8'>
+          <h1 className='text-3xl font-bold text-gray-900'>My Profile</h1>
+          <div className='flex gap-3'>
             {isEditing ? (
-              <div className="mb-6">
-                <ImageUpload
-                  currentImageUrl={currentProfile?.profilePhoto}
-                  uploadType="PROFILE_PHOTO"
-                  label="Profile Photo"
-                  aspectRatio="circle"
-                  onUploadSuccess={(fileUrl) => handleInputChange('profilePhoto', fileUrl)}
-                />
-              </div>
-            ) : (
-              <div className='w-32 h-32 mx-auto mb-4 rounded-full overflow-hidden border-4 border-amber-400 bg-amber-50 flex items-center justify-center'>
-                {currentProfile?.profilePhoto ? (
-                  <img
-                    src={currentProfile.profilePhoto}
-                    alt={currentProfile?.fullName}
-                    className='w-full h-full object-cover'
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                      e.currentTarget.parentElement?.classList.add('show-icon')
-                    }}
-                  />
-                ) : (
-                  <Icon name='User' size={48} className='text-amber-400' />
-                )}
-              </div>
-            )}
-
-            {isEditing ? (
-              <div className='space-y-3 text-left'>
-                <div>
-                  <label className='text-xs font-medium text-gray-500'>Full Name</label>
-                  <input
-                    type='text'
-                    value={currentProfile?.fullName || ''}
-                    onChange={(e) => handleInputChange('fullName', e.target.value)}
-                    className='w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                  />
-                </div>
-                <div>
-                  <input
-                    type='text'
-                    value={currentProfile?.city || ''}
-                    onChange={(e) => handleInputChange('city', e.target.value)}
-                    className='w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                  />
-                </div>
-                <div>
-                  <label className='text-xs font-medium text-gray-500'>Stage Name (Optional)</label>
-                  <input
-                    type='text'
-                    value={currentProfile?.stageName || ''}
-                    onChange={(e) => handleInputChange('stageName', e.target.value)}
-                    className='w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                  />
-                </div>
-                <div>
-                  <label className='text-xs font-medium text-gray-500'>Date of Birth</label>
-                  <input
-                    type='date'
-                    value={currentProfile?.dateOfBirth ? currentProfile.dateOfBirth.split('T')[0] : ''}
-                    onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                    className='w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                  />
-                </div>
-                <div>
-                  <label className='text-xs font-medium text-gray-500'>Gender</label>
-                  <select
-                    value={currentProfile?.gender || ''}
-                    onChange={(e) => handleInputChange('gender', e.target.value)}
-                    className='w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                  >
-                    <option value="">Select Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-              </div>
+              <>
+                <button
+                  onClick={handleCancelEdit}
+                  className='flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg transition-colors font-semibold'
+                >
+                  <Icon name='X' size={16} />
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={saving}
+                  className='flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg transition-colors font-semibold disabled:opacity-50'
+                >
+                  <Icon name='Save' size={16} />
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </>
             ) : (
               <>
-                <h2 className='text-xl font-bold text-gray-900'>{currentProfile?.fullName}</h2>
-                {currentProfile?.stageName && <p className="text-gray-500 text-sm">({currentProfile.stageName})</p>}
-                <p className='text-amber-600 font-medium'>{currentProfile?.category}</p>
-                <div className='mt-2 text-gray-600 space-y-1'>
-                  <p>{currentProfile?.city}</p>
-                  {currentProfile?.dateOfBirth && <p className='text-xs text-gray-500'>Born: {new Date(currentProfile.dateOfBirth).toLocaleDateString()}</p>}
-                  {currentProfile?.gender && <p className='text-xs text-gray-500'>{currentProfile.gender}</p>}
-                </div>
+                <button
+                  onClick={handleShareProfile}
+                  className='flex items-center gap-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg transition-colors'
+                >
+                  <Icon name='Share2' size={16} />
+                  Share Profile
+                </button>
+                <button
+                  onClick={handleEditProfile}
+                  className='flex items-center gap-2 bg-white border border-amber-600 text-amber-600 hover:bg-amber-50 px-4 py-2 rounded-lg transition-colors'
+                >
+                  <Icon name='Edit' size={16} />
+                  Edit Profile
+                </button>
               </>
             )}
+          </div>
+        </div>
 
-            <div className='mt-6 pt-6 border-t border-gray-100'>
-              <h3 className='text-sm font-medium text-gray-500 mb-3'>Contact Information</h3>
+        <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
+          {/* Left Column - Profile Card */}
+          <div className='lg:col-span-1 space-y-6'>
+            <div className='bg-white rounded-xl p-6 shadow-sm text-center'>
+              {/* Profile Photo Upload in Edit Mode */}
               {isEditing ? (
-                <div className='space-y-3 text-left'>
-                  <div>
-                    <label className='text-xs font-medium text-gray-500'>Email</label>
-                    <input
-                      type='email'
-                      value={currentProfile?.email || ''}
-                      onChange={(e) => handleInputChange('email', e.target.value)}
-                      className='w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                    />
-                  </div>
-                  <div>
-                    <label className='text-xs font-medium text-gray-500'>Phone</label>
-                    <input
-                      type='tel'
-                      value={currentProfile?.phone || ''}
-                      onChange={(e) => handleInputChange('phone', e.target.value)}
-                      className='w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                    />
-                  </div>
+                <div className="mb-6">
+                  <ImageUpload
+                    currentImageUrl={currentProfile?.profilePhoto}
+                    uploadType="PROFILE_PHOTO"
+                    label="Profile Photo"
+                    aspectRatio="circle"
+                    onUploadSuccess={(fileUrl) => handleInputChange('profilePhoto', fileUrl)}
+                  />
                 </div>
               ) : (
-                <div className='space-y-2 text-sm'>
-                  <div className='flex items-center justify-center gap-2 text-gray-600'>
-                    <Icon name='Mail' size={16} className='text-amber-500' />
-                    <span>{currentProfile?.email}</span>
-                  </div>
-                  <div className='flex items-center justify-center gap-2 text-gray-600'>
-                    <Icon name='Phone' size={16} className='text-amber-500' />
-                    <span>{currentProfile?.phone}</span>
-                  </div>
+                <div className='w-32 h-32 mx-auto mb-4 rounded-full overflow-hidden border-4 border-amber-400 bg-amber-50 flex items-center justify-center'>
+                  {currentProfile?.profilePhoto ? (
+                    <img
+                      src={currentProfile.profilePhoto}
+                      alt={currentProfile?.fullName}
+                      className='w-full h-full object-cover'
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                        e.currentTarget.parentElement?.classList.add('show-icon')
+                      }}
+                    />
+                  ) : (
+                    <Icon name='User' size={48} className='text-amber-400' />
+                  )}
                 </div>
               )}
 
-              <div className='mt-4 pt-4 border-t border-gray-100'>
-                <h3 className='text-sm font-medium text-gray-500 mb-3'>Languages</h3>
-                {isEditing ? (
-                  <input
-                    type='text'
-                    value={currentProfile?.languages || ''}
-                    onChange={(e) => handleInputChange('languages', e.target.value)}
-                    placeholder='e.g., English, Hindi, Tamil'
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                  />
-                ) : (
-                  <div className='flex flex-wrap justify-center gap-2'>
-                    {currentProfile?.languages.split(',').map((lang, index) => (
-                      <span key={index} className='bg-gray-100 text-gray-700 text-xs px-2.5 py-1 rounded-full'>
-                        {lang.trim()}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Profile Completion */}
-          <div className='bg-white rounded-xl p-6 shadow-sm'>
-            <h3 className='text-lg font-semibold text-gray-800 mb-4'>Profile Completion</h3>
-            <div className='mb-4'>
-              <div className='flex justify-between items-center mb-2'>
-                <span className='text-sm font-medium text-gray-700'>{profileCompletion.percentage}% Complete</span>
-                <span className={`text-xs font-medium px-2 py-1 rounded-full ${profileCompletion.percentage >= 80 ? 'bg-green-100 text-green-700' :
-                  profileCompletion.percentage >= 50 ? 'bg-amber-100 text-amber-700' :
-                    'bg-red-100 text-red-700'
-                  }`}>
-                  {profileCompletion.percentage >= 80 ? 'Good' : profileCompletion.percentage >= 50 ? 'Needs Work' : 'Incomplete'}
-                </span>
-              </div>
-              <div className='w-full bg-gray-200 rounded-full h-3'>
-                <div
-                  className={`h-3 rounded-full transition-all duration-500 ${profileCompletion.percentage >= 80 ? 'bg-green-500' :
-                    profileCompletion.percentage >= 50 ? 'bg-amber-500' :
-                      'bg-red-500'
-                    }`}
-                  style={{ width: `${profileCompletion.percentage}%` }}
-                />
-              </div>
-              <p className='text-xs text-gray-500 mt-2 text-center'>
-                {profileCompletion.filled} of {profileCompletion.total} fields completed
-              </p>
-            </div>
-
-            {/* All Fields Status */}
-            <div className='mt-4 space-y-2'>
-              <p className='text-xs font-medium text-gray-500 mb-2'>Field Status:</p>
-              <div className='max-h-48 overflow-y-auto space-y-1.5'>
-                {profileCompletion.fields.map((field, index) => (
-                  <div key={index} className='flex items-center justify-between text-xs py-1.5 px-2 rounded bg-gray-50'>
-                    <span className='text-gray-600'>{field.label}</span>
-                    {field.isFilled ? (
-                      <span className='flex items-center gap-1 text-green-600'>
-                        <Icon name='Check' size={12} />
-                        <span className='truncate max-w-[100px]' title={String(field.displayValue)}>
-                          {field.displayValue}
-                        </span>
-                      </span>
-                    ) : (
-                      <span className='flex items-center gap-1 text-red-500'>
-                        <Icon name='X' size={12} />
-                        Missing
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {profileCompletion.percentage < 100 && (
-              <button
-                onClick={handleEditProfile}
-                className='mt-4 w-full bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-medium py-2 px-4 rounded-lg transition-colors'
-              >
-                Complete Your Profile
-              </button>
-            )}
-          </div>
-
-          {/* Cover Photo */}
-          <div className='bg-white rounded-xl p-6 shadow-sm'>
-            <h3 className='text-lg font-semibold text-gray-800 mb-4'>Cover Photo</h3>
-            {isEditing ? (
-              <ImageUpload
-                currentImageUrl={currentProfile?.coverPhoto}
-                uploadType="COVER_PHOTO"
-                label="Cover Photo"
-                aspectRatio="wide"
-                onUploadSuccess={(fileUrl) => handleInputChange('coverPhoto', fileUrl)}
-              />
-            ) : currentProfile?.coverPhoto ? (
-              <img
-                src={currentProfile.coverPhoto}
-                alt="Cover"
-                className='w-full h-40 object-cover rounded-lg'
-              />
-            ) : (
-              <p className='text-gray-500 text-sm'>No cover photo uploaded</p>
-            )}
-          </div>
-
-          {/* ID Proof */}
-          <div className='bg-white rounded-xl p-6 shadow-sm'>
-            <h3 className='text-lg font-semibold text-gray-800 mb-4'>ID Proof</h3>
-            {isEditing ? (
-              <DocumentUpload
-                currentDocumentUrl={currentProfile?.idProof}
-                uploadType="ID_PROOF"
-                label="ID Proof"
-                description="Upload Aadhaar, PAN, Passport, or Driving License for verification"
-                onUploadSuccess={(fileUrl) => handleInputChange('idProof', fileUrl)}
-              />
-            ) : currentProfile?.idProof ? (
-              <div className='flex items-center justify-between p-3 border border-gray-200 rounded-lg'>
-                <div className='flex items-center gap-3'>
-                  <div className='p-2 bg-gray-100 rounded-lg text-gray-600'>
-                    <Icon name='FileText' size={20} />
+              {isEditing ? (
+                <div className='space-y-3 text-left'>
+                  <div>
+                    <label className='text-xs font-medium text-gray-500'>Full Name</label>
+                    <input
+                      type='text'
+                      value={currentProfile?.fullName || ''}
+                      onChange={(e) => handleInputChange('fullName', e.target.value)}
+                      className='w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                    />
                   </div>
                   <div>
-                    <p className='text-sm font-medium text-gray-900'>ID Document</p>
-                    <p className='text-xs text-gray-500'>
-                      {currentProfile.idProofVerified ? 'Verified ✓' : 'Pending Verification'}
-                    </p>
+                    <input
+                      type='text'
+                      value={currentProfile?.city || ''}
+                      onChange={(e) => handleInputChange('city', e.target.value)}
+                      className='w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                    />
+                  </div>
+                  <div>
+                    <label className='text-xs font-medium text-gray-500'>Stage Name (Optional)</label>
+                    <input
+                      type='text'
+                      value={currentProfile?.stageName || ''}
+                      onChange={(e) => handleInputChange('stageName', e.target.value)}
+                      className='w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                    />
+                  </div>
+                  <div>
+                    <label className='text-xs font-medium text-gray-500'>Date of Birth</label>
+                    <input
+                      type='date'
+                      value={currentProfile?.dateOfBirth ? currentProfile.dateOfBirth.split('T')[0] : ''}
+                      onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+                      className='w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                    />
+                  </div>
+                  <div>
+                    <label className='text-xs font-medium text-gray-500'>Gender</label>
+                    <select
+                      value={currentProfile?.gender || ''}
+                      onChange={(e) => handleInputChange('gender', e.target.value)}
+                      className='w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
                   </div>
                 </div>
-                <a
-                  href={currentProfile.idProof}
-                  target='_blank'
-                  rel='noopener noreferrer'
-                  className='text-amber-600 hover:text-amber-700 text-sm font-medium'
-                >
-                  View
-                </a>
-              </div>
-            ) : (
-              <p className='text-gray-500 text-sm'>No ID proof uploaded</p>
-            )}
-          </div>
+              ) : (
+                <>
+                  <h2 className='text-xl font-bold text-gray-900'>{currentProfile?.fullName}</h2>
+                  {currentProfile?.stageName && <p className="text-gray-500 text-sm">({currentProfile.stageName})</p>}
+                  <p className='text-amber-600 font-medium'>{currentProfile?.category}</p>
+                  <div className='mt-2 text-gray-600 space-y-1'>
+                    <p>{currentProfile?.city}</p>
+                    {currentProfile?.dateOfBirth && <p className='text-xs text-gray-500'>Born: {new Date(currentProfile.dateOfBirth).toLocaleDateString()}</p>}
+                    {currentProfile?.gender && <p className='text-xs text-gray-500'>{currentProfile.gender}</p>}
+                  </div>
+                </>
+              )}
 
-          {/* Verification Badge */}
-          <div className='bg-white rounded-xl p-6 shadow-sm'>
-            <h3 className='text-lg font-semibold text-gray-800 mb-4'>Verification</h3>
-            <div className='space-y-4'>
-              <div className={`flex items-center p-3 rounded-lg ${profile.idProof ? (profile.idProofVerified ? 'bg-green-50' : 'bg-yellow-50') : 'bg-amber-50'}`}>
-                <div className={`p-2 rounded-full ${profile.idProof ? (profile.idProofVerified ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600') : 'bg-amber-100 text-amber-600'}`}>
-                  <Icon name={profile.idProof ? (profile.idProofVerified ? 'CheckCircle' : 'Clock') : 'AlertCircle'} size={20} />
-                </div>
-                <div className='ml-3'>
-                  <p className='text-sm font-medium text-gray-900'>ID Proof</p>
-                  <p className='text-xs text-gray-500'>
-                    {profile.idProof
-                      ? profile.idProofVerified
-                        ? 'Verified ✓'
-                        : 'Pending Verification'
-                      : 'Not Uploaded'}
-                  </p>
-                </div>
-              </div>
-              <div className={`flex items-center p-3 rounded-lg ${(profile.faceVerification || localFaceVerified) ? 'bg-green-50' : 'bg-amber-50'}`}>
-                <div className={`p-2 rounded-full ${(profile.faceVerification || localFaceVerified) ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
-                  <Icon name={(profile.faceVerification || localFaceVerified) ? 'CheckCircle' : 'AlertCircle'} size={20} />
-                </div>
-                <div className='ml-3 flex-1'>
-                  <p className='text-sm font-medium text-gray-900'>Face Verification</p>
-                  <p className='text-xs text-gray-500'>
-                    {profile.faceVerification ? 'Verified ✓' : localFaceVerified ? 'Pending Review' : 'Not Verified'}
-                  </p>
-                </div>
-                {profile.faceVerification ? (
-                  <a
-                    href={profile.faceVerification}
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='ml-2 flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-green-600 hover:text-green-700 bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded-lg transition-colors'>
-                    <Icon name='Eye' size={14} />
-                    View
-                  </a>
-                ) : !localFaceVerified && (
-                  <button
-                    onClick={openFaceModal}
-                    className='ml-2 flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 px-3 py-1.5 rounded-lg transition-colors'>
-                    <Icon name='Camera' size={14} />
-                    Start
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column - Details */}
-        <div className='lg:col-span-2 space-y-6'>
-          {/* About Section */}
-          <div className='bg-white rounded-xl p-6 shadow-sm'>
-            <h3 className='text-lg font-semibold text-gray-800 mb-4'>About</h3>
-            {isEditing ? (
-              <textarea
-                value={currentProfile?.bio || ''}
-                onChange={(e) => handleInputChange('bio', e.target.value)}
-                rows={4}
-                className='w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none resize-none'
-                placeholder='Tell us about yourself...'
-              />
-            ) : (
-              <p className='text-gray-600'>{currentProfile?.bio}</p>
-            )}
-          </div>
-
-          {/* Additional Core Details */}
-          <div className='bg-white rounded-xl p-6 shadow-sm'>
-            <h3 className='text-lg font-semibold text-gray-800 mb-4'>Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className='text-sm font-medium text-gray-700 block mb-1'>Skills</label>
+              <div className='mt-6 pt-6 border-t border-gray-100'>
+                <h3 className='text-sm font-medium text-gray-500 mb-3'>Contact Information</h3>
                 {isEditing ? (
-                  <input
-                    type='text'
-                    value={currentProfile?.skills || ''}
-                    onChange={(e) => handleInputChange('skills', e.target.value)}
-                    placeholder="Acting, Singing, Dancing"
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                  />
+                  <div className='space-y-3 text-left'>
+                    <div>
+                      <label className='text-xs font-medium text-gray-500'>Email</label>
+                      <input
+                        type='email'
+                        value={currentProfile?.email || ''}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
+                        className='w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                      />
+                    </div>
+                    <div>
+                      <label className='text-xs font-medium text-gray-500'>Phone</label>
+                      <input
+                        type='tel'
+                        value={currentProfile?.phone || ''}
+                        onChange={(e) => handleInputChange('phone', e.target.value)}
+                        className='w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                      />
+                    </div>
+                  </div>
                 ) : (
-                  <p className='text-gray-600'>{currentProfile?.skills || '-'}</p>
+                  <div className='space-y-2 text-sm'>
+                    <div className='flex items-center justify-center gap-2 text-gray-600'>
+                      <Icon name='Mail' size={16} className='text-amber-500' />
+                      <span>{currentProfile?.email}</span>
+                    </div>
+                    <div className='flex items-center justify-center gap-2 text-gray-600'>
+                      <Icon name='Phone' size={16} className='text-amber-500' />
+                      <span>{currentProfile?.phone}</span>
+                    </div>
+                  </div>
                 )}
-              </div>
-              <div>
-                <label className='text-sm font-medium text-gray-700 block mb-1'>Height & Weight</label>
-                <div className="flex gap-2">
+
+                <div className='mt-4 pt-4 border-t border-gray-100'>
+                  <h3 className='text-sm font-medium text-gray-500 mb-3'>Languages</h3>
                   {isEditing ? (
-                    <>
-                      <input
-                        type='text'
-                        value={currentProfile?.height || ''}
-                        onChange={(e) => handleInputChange('height', e.target.value)}
-                        placeholder="Height (e.g. 5'8)"
-                        className='w-1/2 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                      />
-                      <input
-                        type='number'
-                        value={currentProfile?.weight || ''}
-                        onChange={(e) => handleInputChange('weight', Number(e.target.value))}
-                        placeholder="Weight (kg)"
-                        className='w-1/2 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                      />
-                    </>
+                    <input
+                      type='text'
+                      value={currentProfile?.languages || ''}
+                      onChange={(e) => handleInputChange('languages', e.target.value)}
+                      placeholder='e.g., English, Hindi, Tamil'
+                      className='w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                    />
                   ) : (
-                    <p className='text-gray-600'>{currentProfile?.height || '-'} / {currentProfile?.weight ? `${currentProfile.weight} kg` : '-'}</p>
+                    <div className='flex flex-wrap justify-center gap-2'>
+                      {currentProfile?.languages.split(',').map((lang, index) => (
+                        <span key={index} className='bg-gray-100 text-gray-700 text-xs px-2.5 py-1 rounded-full'>
+                          {lang.trim()}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
-              <div>
-                <label className='text-sm font-medium text-gray-700 block mb-1'>Experience (Years)</label>
-                {isEditing ? (
-                  <input
-                    type='number'
-                    value={currentProfile?.experienceYears || ''}
-                    onChange={(e) => handleInputChange('experienceYears', e.target.value)}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                  />
-                ) : (
-                  <p className='text-gray-600'>{currentProfile?.experienceYears || '-'}</p>
-                )}
-              </div>
-              <div>
-                <label className='text-sm font-medium text-gray-700 block mb-1'>Per Day
-                </label>
-                {isEditing ? (
-                  <input
-                    type='number'
-                    value={currentProfile?.hourlyRate || ''}
-                    onChange={(e) => handleInputChange('hourlyRate', Number(e.target.value))}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                  />
-                ) : (
-                  <p className='text-gray-600'>{currentProfile?.hourlyRate ? `$${currentProfile.hourlyRate}/hr` : '-'}</p>
-                )}
-              </div>
             </div>
-          </div>
 
-          {/* Physical Attributes */}
-          <div className='bg-white rounded-xl p-6 shadow-sm'>
-            <h3 className='text-lg font-semibold text-gray-800 mb-4'>Physical Attributes</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-              {/* Hair Color */}
-              <div>
-                <label className='text-sm font-medium text-gray-700 block mb-1'>Hair Color</label>
-                {isEditing ? (
-                  <input
-                    type='text'
-                    value={currentProfile?.hairColor || ''}
-                    onChange={(e) => handleInputChange('hairColor', e.target.value)}
-                    placeholder="e.g., Black, Brown"
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+            {/* Profile Completion */}
+            <div className='bg-white rounded-xl p-6 shadow-sm'>
+              <h3 className='text-lg font-semibold text-gray-800 mb-4'>Profile Completion</h3>
+              <div className='mb-4'>
+                <div className='flex justify-between items-center mb-2'>
+                  <span className='text-sm font-medium text-gray-700'>{profileCompletion.percentage}% Complete</span>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${profileCompletion.percentage >= 80 ? 'bg-green-100 text-green-700' :
+                    profileCompletion.percentage >= 50 ? 'bg-amber-100 text-amber-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                    {profileCompletion.percentage >= 80 ? 'Good' : profileCompletion.percentage >= 50 ? 'Needs Work' : 'Incomplete'}
+                  </span>
+                </div>
+                <div className='w-full bg-gray-200 rounded-full h-3'>
+                  <div
+                    className={`h-3 rounded-full transition-all duration-500 ${profileCompletion.percentage >= 80 ? 'bg-green-500' :
+                      profileCompletion.percentage >= 50 ? 'bg-amber-500' :
+                        'bg-red-500'
+                      }`}
+                    style={{ width: `${profileCompletion.percentage}%` }}
                   />
-                ) : (
-                  <p className='text-gray-600'>{currentProfile?.hairColor || '-'}</p>
-                )}
+                </div>
+                <p className='text-xs text-gray-500 mt-2 text-center'>
+                  {profileCompletion.filled} of {profileCompletion.total} fields completed
+                </p>
               </div>
 
-              {/* Hair Length */}
-              <div>
-                <label className='text-sm font-medium text-gray-700 block mb-1'>Hair Length</label>
-                {isEditing ? (
-                  <input
-                    type='text'
-                    value={currentProfile?.hairLength || ''}
-                    onChange={(e) => handleInputChange('hairLength', e.target.value)}
-                    placeholder="e.g., Short, Medium, Long"
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                  />
-                ) : (
-                  <p className='text-gray-600'>{currentProfile?.hairLength || '-'}</p>
-                )}
-              </div>
-
-              {/* Eye Color */}
-              <div>
-                <label className='text-sm font-medium text-gray-700 block mb-1'>Eye Color</label>
-                {isEditing ? (
-                  <input
-                    type='text'
-                    value={currentProfile?.eyeColor || ''}
-                    onChange={(e) => handleInputChange('eyeColor', e.target.value)}
-                    placeholder="e.g., Brown, Blue"
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                  />
-                ) : (
-                  <p className='text-gray-600'>{currentProfile?.eyeColor || '-'}</p>
-                )}
-              </div>
-
-              {/* Complexion */}
-              <div>
-                <label className='text-sm font-medium text-gray-700 block mb-1'>Complexion</label>
-                {isEditing ? (
-                  <input
-                    type='text'
-                    value={currentProfile?.complexion || ''}
-                    onChange={(e) => handleInputChange('complexion', e.target.value)}
-                    placeholder="e.g., Fair, Wheatish"
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                  />
-                ) : (
-                  <p className='text-gray-600'>{currentProfile?.complexion || '-'}</p>
-                )}
-              </div>
-
-              {/* Shoe Size */}
-              <div>
-                <label className='text-sm font-medium text-gray-700 block mb-1'>Shoe Size</label>
-                {isEditing ? (
-                  <input
-                    type='text'
-                    value={currentProfile?.shoeSize || ''}
-                    onChange={(e) => handleInputChange('shoeSize', e.target.value)}
-                    placeholder="e.g., 8, 9, 10"
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                  />
-                ) : (
-                  <p className='text-gray-600'>{currentProfile?.shoeSize || '-'}</p>
-                )}
-              </div>
-
-              {/* Features (Checkboxes) */}
-              <div className="md:col-span-2">
-                <label className='text-sm font-medium text-gray-700 block mb-2'>Features</label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  <div className="flex items-center gap-2">
-                    {isEditing ? (
-                      <>
-                        <input
-                          type="checkbox"
-                          checked={currentProfile?.hasTattoo || false}
-                          onChange={(e) => handleInputChange('hasTattoo', e.target.checked)}
-                          className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
-                        />
-                        <label className='text-sm text-gray-700'>Has Tattoo</label>
-                      </>
-                    ) : (
-                      <>
-                        <Icon
-                          name={currentProfile?.hasTattoo ? 'CheckSquare' : 'Square'}
-                          size={18}
-                          className={currentProfile?.hasTattoo ? 'text-amber-600' : 'text-gray-400'}
-                        />
-                        <span className='text-sm text-gray-700'>Has Tattoo</span>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {isEditing ? (
-                      <>
-                        <input
-                          type="checkbox"
-                          checked={currentProfile?.hasMole || false}
-                          onChange={(e) => handleInputChange('hasMole', e.target.checked)}
-                          className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
-                        />
-                        <label className='text-sm text-gray-700'>Has Mole</label>
-                      </>
-                    ) : (
-                      <>
-                        <Icon
-                          name={currentProfile?.hasMole ? 'CheckSquare' : 'Square'}
-                          size={18}
-                          className={currentProfile?.hasMole ? 'text-amber-600' : 'text-gray-400'}
-                        />
-                        <span className='text-sm text-gray-700'>Has Mole</span>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {isEditing ? (
-                      <>
-                        <input
-                          type="checkbox"
-                          checked={currentProfile?.hasPassport || false}
-                          onChange={(e) => handleInputChange('hasPassport', e.target.checked)}
-                          className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
-                        />
-                        <label className='text-sm text-gray-700'>Has Passport</label>
-                      </>
-                    ) : (
-                      <>
-                        <Icon
-                          name={currentProfile?.hasPassport ? 'CheckSquare' : 'Square'}
-                          size={18}
-                          className={currentProfile?.hasPassport ? 'text-amber-600' : 'text-gray-400'}
-                        />
-                        <span className='text-sm text-gray-700'>Has Passport</span>
-                      </>
-                    )}
-                  </div>
+              {/* All Fields Status */}
+              <div className='mt-4 space-y-2'>
+                <p className='text-xs font-medium text-gray-500 mb-2'>Field Status:</p>
+                <div className='max-h-48 overflow-y-auto space-y-1.5'>
+                  {profileCompletion.fields.map((field, index) => (
+                    <div key={index} className='flex items-center justify-between text-xs py-1.5 px-2 rounded bg-gray-50'>
+                      <span className='text-gray-600'>{field.label}</span>
+                      {field.isFilled ? (
+                        <span className='flex items-center gap-1 text-green-600'>
+                          <Icon name='Check' size={12} />
+                          <span className='truncate max-w-[100px]' title={String(field.displayValue)}>
+                            {field.displayValue}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className='flex items-center gap-1 text-red-500'>
+                          <Icon name='X' size={12} />
+                          Missing
+                        </span>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Personal Information */}
-          <div className='bg-white rounded-xl p-6 shadow-sm'>
-            <h3 className='text-lg font-semibold text-gray-800 mb-4'>Personal Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-              {/* Marital Status */}
-              <div>
-                <label className='text-sm font-medium text-gray-700 block mb-1'>Marital Status</label>
-                {isEditing ? (
-                  <select
-                    value={currentProfile?.maritalStatus || ''}
-                    onChange={(e) => handleInputChange('maritalStatus', e.target.value)}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                  >
-                    <option value="">Select</option>
-                    <option value="SINGLE">Single</option>
-                    <option value="MARRIED">Married</option>
-                    <option value="DIVORCED">Divorced</option>
-                    <option value="WIDOWED">Widowed</option>
-                    <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
-                  </select>
-                ) : (
-                  <p className='text-gray-600'>
-                    {currentProfile?.maritalStatus
-                      ? currentProfile.maritalStatus.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-                      : '-'}
-                  </p>
-                )}
-              </div>
-
-              {/* Comfortable Areas */}
-              <div>
-                <label className='text-sm font-medium text-gray-700 block mb-1'>Comfortable Areas</label>
-                {isEditing ? (
-                  <input
-                    type='text'
-                    value={currentProfile?.comfortableAreas || ''}
-                    onChange={(e) => handleInputChange('comfortableAreas', e.target.value)}
-                    placeholder='e.g., Drama, Romance, Action'
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                  />
-                ) : (
-                  <p className='text-gray-600'>{currentProfile?.comfortableAreas || '-'}</p>
-                )}
-              </div>
-
-              {/* Travel Cities */}
-              <div className='md:col-span-2'>
-                <label className='text-sm font-medium text-gray-700 block mb-1'>Willing to Travel To</label>
-                {isEditing ? (
-                  <input
-                    type='text'
-                    value={currentProfile?.travelCities || ''}
-                    onChange={(e) => handleInputChange('travelCities', e.target.value)}
-                    placeholder='e.g., Mumbai, Delhi, Bangalore'
-                    className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                  />
-                ) : currentProfile?.travelCities ? (
-                  <div className='flex flex-wrap gap-2'>
-                    {currentProfile.travelCities.split(',').map((city, i) => (
-                      <span key={i} className='bg-blue-50 text-blue-700 text-xs px-2.5 py-1 rounded-full'>{city.trim()}</span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className='text-gray-600'>-</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Artist Type Specific Details */}
-          {renderDynamicDetails()}
-
-          {/* Portfolio URLs */}
-          <div className='bg-white rounded-xl p-6 shadow-sm'>
-            <h3 className='text-lg font-semibold text-gray-800 mb-4'>Portfolio Links</h3>
-            {isEditing ? (
-              <div className='space-y-3'>
-                {(currentProfile?.portfolioUrls ?? []).map((url, i) => (
-                  <div key={i} className='flex gap-2'>
-                    <input
-                      type='url'
-                      value={url}
-                      onChange={(e) => {
-                        const updated = [...(editedProfile?.portfolioUrls ?? [])]
-                        updated[i] = e.target.value
-                        handleInputChange('portfolioUrls', updated)
-                      }}
-                      placeholder='https://...'
-                      className='flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm'
-                    />
-                    <button
-                      type='button'
-                      onClick={() => {
-                        const updated = (editedProfile?.portfolioUrls ?? []).filter((_, idx) => idx !== i)
-                        handleInputChange('portfolioUrls', updated)
-                      }}
-                      className='p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors'
-                    >
-                      <Icon name='Trash2' size={16} />
-                    </button>
-                  </div>
-                ))}
+              {profileCompletion.percentage < 100 && (
                 <button
-                  type='button'
-                  onClick={() => handleInputChange('portfolioUrls', [...(editedProfile?.portfolioUrls ?? []), ''])}
-                  className='flex items-center gap-2 text-amber-600 hover:text-amber-700 text-sm font-medium'
+                  onClick={handleEditProfile}
+                  className='mt-4 w-full bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-medium py-2 px-4 rounded-lg transition-colors'
                 >
-                  <Icon name='Plus' size={16} />
-                  Add Portfolio Link
+                  Complete Your Profile
                 </button>
-              </div>
-            ) : (currentProfile?.portfolioUrls?.length ?? 0) > 0 ? (
-              <div className='space-y-2'>
-                {currentProfile!.portfolioUrls!.map((url, i) => (
-                  <a
-                    key={i}
-                    href={url}
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='flex items-center gap-2 text-amber-600 hover:underline text-sm truncate'
-                  >
-                    <Icon name='ExternalLink' size={14} />
-                    {url}
-                  </a>
-                ))}
-              </div>
-            ) : (
-              <p className='text-gray-500 text-sm'>No portfolio links added yet.</p>
-            )}
-          </div>
+              )}
+            </div>
 
-          {/* Profile Video */}
-          <div className='bg-white rounded-xl p-6 shadow-sm'>
-            <h3 className='text-lg font-semibold text-gray-800 mb-4'>Profile Video</h3>
-            {isEditing ? (
-              <div className='space-y-4'>
-                <VideoUpload
-                  currentVideoUrl={currentProfile?.videoUrl}
-                  uploadType="AUDITION_VIDEO"
-                  label="Upload Profile Video"
-                  description="Introduction or showreel video (max 100MB)"
-                  onUploadSuccess={(fileUrl) => handleInputChange('videoUrl', fileUrl)}
-                  maxSizeMB={100}
+            {/* Cover Photo */}
+            <div className='bg-white rounded-xl p-6 shadow-sm'>
+              <h3 className='text-lg font-semibold text-gray-800 mb-4'>Cover Photo</h3>
+              {isEditing ? (
+                <ImageUpload
+                  currentImageUrl={currentProfile?.coverPhoto}
+                  uploadType="COVER_PHOTO"
+                  label="Cover Photo"
+                  aspectRatio="wide"
+                  onUploadSuccess={(fileUrl) => handleInputChange('coverPhoto', fileUrl)}
                 />
-                <div className='text-center text-gray-500 text-sm'>OR</div>
-                <div>
-                  <label className='text-xs font-medium text-gray-500'>YouTube / Vimeo URL</label>
-                  <input
-                    type='url'
-                    value={currentProfile?.videoUrl || ''}
-                    onChange={(e) => handleInputChange('videoUrl', e.target.value)}
-                    placeholder='https://youtube.com/watch?v=...'
-                    className='w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                  />
-                </div>
-              </div>
-            ) : currentProfile?.videoUrl ? (
-              currentProfile.videoUrl.includes('youtube.com') || currentProfile.videoUrl.includes('youtu.be') || currentProfile.videoUrl.includes('vimeo.com') ? (
-                <iframe
-                  src={currentProfile.videoUrl}
-                  className='w-full h-64 rounded-lg'
-                  title='Profile Video'
-                  allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture'
-                  allowFullScreen
+              ) : currentProfile?.coverPhoto ? (
+                <img
+                  src={currentProfile.coverPhoto}
+                  alt="Cover"
+                  className='w-full h-40 object-cover rounded-lg'
                 />
               ) : (
-                <video src={currentProfile.videoUrl} controls className='w-full rounded-lg' />
-              )
-            ) : (
-              <p className='text-gray-500 text-sm'>No profile video added yet.</p>
-            )}
-          </div>
+                <p className='text-gray-500 text-sm'>No cover photo uploaded</p>
+              )}
+            </div>
 
-          {/* Documents Section */}
-          <div className='bg-white rounded-xl p-6 shadow-sm'>
-            <h3 className='text-lg font-semibold text-gray-800 mb-4'>Documents</h3>
-            <div className='space-y-4'>
-              <div className='flex items-center justify-between p-3 border border-gray-200 rounded-lg'>
-                <div className='flex items-center gap-3'>
-                  <div className='p-2 bg-gray-100 rounded-lg text-gray-600'>
-                    <Icon name='FileText' size={20} />
-                  </div>
-                  <div>
-                    <p className='text-sm font-medium text-gray-900'>ID Proof</p>
-                    <p className='text-xs text-gray-500'>Uploaded on 15 Aug 2023</p>
-                  </div>
-                </div>
-                <button className='text-amber-600 hover:text-amber-700 text-sm font-medium'>
-                  View
-                </button>
-              </div>
-
-              {profile.category?.toLowerCase() === 'dancer' && profile.danceVideo && (
+            {/* ID Proof */}
+            <div className='bg-white rounded-xl p-6 shadow-sm'>
+              <h3 className='text-lg font-semibold text-gray-800 mb-4'>ID Proof</h3>
+              {isEditing ? (
+                <DocumentUpload
+                  currentDocumentUrl={currentProfile?.idProof}
+                  uploadType="ID_PROOF"
+                  label="ID Proof"
+                  description="Upload Aadhaar, PAN, Passport, or Driving License for verification"
+                  onUploadSuccess={(fileUrl) => handleInputChange('idProof', fileUrl)}
+                />
+              ) : currentProfile?.idProof ? (
                 <div className='flex items-center justify-between p-3 border border-gray-200 rounded-lg'>
                   <div className='flex items-center gap-3'>
                     <div className='p-2 bg-gray-100 rounded-lg text-gray-600'>
-                      <Icon name='Film' size={20} />
+                      <Icon name='FileText' size={20} />
                     </div>
                     <div>
-                      <p className='text-sm font-medium text-gray-900'>Dance Showreel</p>
-                      <p className='text-xs text-gray-500'>YouTube Link</p>
+                      <p className='text-sm font-medium text-gray-900'>ID Document</p>
+                      <p className='text-xs text-gray-500'>
+                        {currentProfile.idProofVerified ? 'Verified ✓' : 'Pending Verification'}
+                      </p>
                     </div>
                   </div>
                   <a
-                    href={profile.danceVideo}
+                    href={currentProfile.idProof}
                     target='_blank'
                     rel='noopener noreferrer'
                     className='text-amber-600 hover:text-amber-700 text-sm font-medium'
                   >
-                    Watch
+                    View
                   </a>
                 </div>
+              ) : (
+                <p className='text-gray-500 text-sm'>No ID proof uploaded</p>
+              )}
+            </div>
+
+            {/* Verification Badge */}
+            <div className='bg-white rounded-xl p-6 shadow-sm'>
+              <h3 className='text-lg font-semibold text-gray-800 mb-4'>Verification</h3>
+              <div className='space-y-4'>
+                <div className={`flex items-center p-3 rounded-lg ${profile.idProof ? (profile.idProofVerified ? 'bg-green-50' : 'bg-yellow-50') : 'bg-amber-50'}`}>
+                  <div className={`p-2 rounded-full ${profile.idProof ? (profile.idProofVerified ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600') : 'bg-amber-100 text-amber-600'}`}>
+                    <Icon name={profile.idProof ? (profile.idProofVerified ? 'CheckCircle' : 'Clock') : 'AlertCircle'} size={20} />
+                  </div>
+                  <div className='ml-3'>
+                    <p className='text-sm font-medium text-gray-900'>ID Proof</p>
+                    <p className='text-xs text-gray-500'>
+                      {profile.idProof
+                        ? profile.idProofVerified
+                          ? 'Verified ✓'
+                          : 'Pending Verification'
+                        : 'Not Uploaded'}
+                    </p>
+                  </div>
+                </div>
+                <div className={`flex items-center p-3 rounded-lg ${(profile.faceVerification || localFaceVerified) ? 'bg-green-50' : 'bg-amber-50'}`}>
+                  <div className={`p-2 rounded-full ${(profile.faceVerification || localFaceVerified) ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                    <Icon name={(profile.faceVerification || localFaceVerified) ? 'CheckCircle' : 'AlertCircle'} size={20} />
+                  </div>
+                  <div className='ml-3 flex-1'>
+                    <p className='text-sm font-medium text-gray-900'>Face Verification</p>
+                    <p className='text-xs text-gray-500'>
+                      {profile.faceVerification ? 'Verified ✓' : localFaceVerified ? 'Pending Review' : 'Not Verified'}
+                    </p>
+                  </div>
+                  {profile.faceVerification ? (
+                    <a
+                      href={profile.faceVerification}
+                      target='_blank'
+                      rel='noopener noreferrer'
+                      className='ml-2 flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-green-600 hover:text-green-700 bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded-lg transition-colors'>
+                      <Icon name='Eye' size={14} />
+                      View
+                    </a>
+                  ) : !localFaceVerified && (
+                    <button
+                      onClick={openFaceModal}
+                      className='ml-2 flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 px-3 py-1.5 rounded-lg transition-colors'>
+                      <Icon name='Camera' size={14} />
+                      Start
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - Details */}
+          <div className='lg:col-span-2 space-y-6'>
+            {/* About Section */}
+            <div className='bg-white rounded-xl p-6 shadow-sm'>
+              <h3 className='text-lg font-semibold text-gray-800 mb-4'>About</h3>
+              {isEditing ? (
+                <textarea
+                  value={currentProfile?.bio || ''}
+                  onChange={(e) => handleInputChange('bio', e.target.value)}
+                  rows={4}
+                  className='w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none resize-none'
+                  placeholder='Tell us about yourself...'
+                />
+              ) : (
+                <p className='text-gray-600'>{currentProfile?.bio}</p>
+              )}
+            </div>
+
+            {/* Additional Core Details */}
+            <div className='bg-white rounded-xl p-6 shadow-sm'>
+              <h3 className='text-lg font-semibold text-gray-800 mb-4'>Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className='text-sm font-medium text-gray-700 block mb-1'>Skills</label>
+                  {isEditing ? (
+                    <input
+                      type='text'
+                      value={currentProfile?.skills || ''}
+                      onChange={(e) => handleInputChange('skills', e.target.value)}
+                      placeholder="Acting, Singing, Dancing"
+                      className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                    />
+                  ) : (
+                    <p className='text-gray-600'>{currentProfile?.skills || '-'}</p>
+                  )}
+                </div>
+                <div>
+                  <label className='text-sm font-medium text-gray-700 block mb-1'>Height & Weight</label>
+                  <div className="flex gap-2">
+                    {isEditing ? (
+                      <>
+                        <input
+                          type='text'
+                          value={currentProfile?.height || ''}
+                          onChange={(e) => handleInputChange('height', e.target.value)}
+                          placeholder="Height (e.g. 5'8)"
+                          className='w-1/2 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                        />
+                        <input
+                          type='number'
+                          value={currentProfile?.weight || ''}
+                          onChange={(e) => handleInputChange('weight', Number(e.target.value))}
+                          placeholder="Weight (kg)"
+                          className='w-1/2 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                        />
+                      </>
+                    ) : (
+                      <p className='text-gray-600'>{currentProfile?.height || '-'} / {currentProfile?.weight ? `${currentProfile.weight} kg` : '-'}</p>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className='text-sm font-medium text-gray-700 block mb-1'>Experience (Years)</label>
+                  {isEditing ? (
+                    <input
+                      type='number'
+                      value={currentProfile?.experienceYears || ''}
+                      onChange={(e) => handleInputChange('experienceYears', e.target.value)}
+                      className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                    />
+                  ) : (
+                    <p className='text-gray-600'>{currentProfile?.experienceYears || '-'}</p>
+                  )}
+                </div>
+                <div>
+                  <label className='text-sm font-medium text-gray-700 block mb-1'>Per Day
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type='number'
+                      value={currentProfile?.hourlyRate || ''}
+                      onChange={(e) => handleInputChange('hourlyRate', Number(e.target.value))}
+                      className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                    />
+                  ) : (
+                    <p className='text-gray-600'>{currentProfile?.hourlyRate ? `$${currentProfile.hourlyRate}/hr` : '-'}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Physical Attributes */}
+            <div className='bg-white rounded-xl p-6 shadow-sm'>
+              <h3 className='text-lg font-semibold text-gray-800 mb-4'>Physical Attributes</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                {/* Hair Color */}
+                <div>
+                  <label className='text-sm font-medium text-gray-700 block mb-1'>Hair Color</label>
+                  {isEditing ? (
+                    <input
+                      type='text'
+                      value={currentProfile?.hairColor || ''}
+                      onChange={(e) => handleInputChange('hairColor', e.target.value)}
+                      placeholder="e.g., Black, Brown"
+                      className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                    />
+                  ) : (
+                    <p className='text-gray-600'>{currentProfile?.hairColor || '-'}</p>
+                  )}
+                </div>
+
+                {/* Hair Length */}
+                <div>
+                  <label className='text-sm font-medium text-gray-700 block mb-1'>Hair Length</label>
+                  {isEditing ? (
+                    <input
+                      type='text'
+                      value={currentProfile?.hairLength || ''}
+                      onChange={(e) => handleInputChange('hairLength', e.target.value)}
+                      placeholder="e.g., Short, Medium, Long"
+                      className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                    />
+                  ) : (
+                    <p className='text-gray-600'>{currentProfile?.hairLength || '-'}</p>
+                  )}
+                </div>
+
+                {/* Eye Color */}
+                <div>
+                  <label className='text-sm font-medium text-gray-700 block mb-1'>Eye Color</label>
+                  {isEditing ? (
+                    <input
+                      type='text'
+                      value={currentProfile?.eyeColor || ''}
+                      onChange={(e) => handleInputChange('eyeColor', e.target.value)}
+                      placeholder="e.g., Brown, Blue"
+                      className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                    />
+                  ) : (
+                    <p className='text-gray-600'>{currentProfile?.eyeColor || '-'}</p>
+                  )}
+                </div>
+
+                {/* Complexion */}
+                <div>
+                  <label className='text-sm font-medium text-gray-700 block mb-1'>Complexion</label>
+                  {isEditing ? (
+                    <input
+                      type='text'
+                      value={currentProfile?.complexion || ''}
+                      onChange={(e) => handleInputChange('complexion', e.target.value)}
+                      placeholder="e.g., Fair, Wheatish"
+                      className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                    />
+                  ) : (
+                    <p className='text-gray-600'>{currentProfile?.complexion || '-'}</p>
+                  )}
+                </div>
+
+                {/* Shoe Size */}
+                <div>
+                  <label className='text-sm font-medium text-gray-700 block mb-1'>Shoe Size</label>
+                  {isEditing ? (
+                    <input
+                      type='text'
+                      value={currentProfile?.shoeSize || ''}
+                      onChange={(e) => handleInputChange('shoeSize', e.target.value)}
+                      placeholder="e.g., 8, 9, 10"
+                      className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                    />
+                  ) : (
+                    <p className='text-gray-600'>{currentProfile?.shoeSize || '-'}</p>
+                  )}
+                </div>
+
+                {/* Features (Checkboxes) */}
+                <div className="md:col-span-2">
+                  <label className='text-sm font-medium text-gray-700 block mb-2'>Features</label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div className="flex items-center gap-2">
+                      {isEditing ? (
+                        <>
+                          <input
+                            type="checkbox"
+                            checked={currentProfile?.hasTattoo || false}
+                            onChange={(e) => handleInputChange('hasTattoo', e.target.checked)}
+                            className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
+                          />
+                          <label className='text-sm text-gray-700'>Has Tattoo</label>
+                        </>
+                      ) : (
+                        <>
+                          <Icon
+                            name={currentProfile?.hasTattoo ? 'CheckSquare' : 'Square'}
+                            size={18}
+                            className={currentProfile?.hasTattoo ? 'text-amber-600' : 'text-gray-400'}
+                          />
+                          <span className='text-sm text-gray-700'>Has Tattoo</span>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {isEditing ? (
+                        <>
+                          <input
+                            type="checkbox"
+                            checked={currentProfile?.hasMole || false}
+                            onChange={(e) => handleInputChange('hasMole', e.target.checked)}
+                            className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
+                          />
+                          <label className='text-sm text-gray-700'>Has Mole</label>
+                        </>
+                      ) : (
+                        <>
+                          <Icon
+                            name={currentProfile?.hasMole ? 'CheckSquare' : 'Square'}
+                            size={18}
+                            className={currentProfile?.hasMole ? 'text-amber-600' : 'text-gray-400'}
+                          />
+                          <span className='text-sm text-gray-700'>Has Mole</span>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {isEditing ? (
+                        <>
+                          <input
+                            type="checkbox"
+                            checked={currentProfile?.hasPassport || false}
+                            onChange={(e) => handleInputChange('hasPassport', e.target.checked)}
+                            className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
+                          />
+                          <label className='text-sm text-gray-700'>Has Passport</label>
+                        </>
+                      ) : (
+                        <>
+                          <Icon
+                            name={currentProfile?.hasPassport ? 'CheckSquare' : 'Square'}
+                            size={18}
+                            className={currentProfile?.hasPassport ? 'text-amber-600' : 'text-gray-400'}
+                          />
+                          <span className='text-sm text-gray-700'>Has Passport</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Personal Information */}
+            <div className='bg-white rounded-xl p-6 shadow-sm'>
+              <h3 className='text-lg font-semibold text-gray-800 mb-4'>Personal Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                {/* Marital Status */}
+                <div>
+                  <label className='text-sm font-medium text-gray-700 block mb-1'>Marital Status</label>
+                  {isEditing ? (
+                    <select
+                      value={currentProfile?.maritalStatus || ''}
+                      onChange={(e) => handleInputChange('maritalStatus', e.target.value)}
+                      className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                    >
+                      <option value="">Select</option>
+                      <option value="SINGLE">Single</option>
+                      <option value="MARRIED">Married</option>
+                      <option value="DIVORCED">Divorced</option>
+                      <option value="WIDOWED">Widowed</option>
+                      <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+                    </select>
+                  ) : (
+                    <p className='text-gray-600'>
+                      {currentProfile?.maritalStatus
+                        ? currentProfile.maritalStatus.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+                        : '-'}
+                    </p>
+                  )}
+                </div>
+
+                {/* Comfortable Areas */}
+                <div>
+                  <label className='text-sm font-medium text-gray-700 block mb-1'>Comfortable Areas</label>
+                  {isEditing ? (
+                    <input
+                      type='text'
+                      value={currentProfile?.comfortableAreas || ''}
+                      onChange={(e) => handleInputChange('comfortableAreas', e.target.value)}
+                      placeholder='e.g., Drama, Romance, Action'
+                      className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                    />
+                  ) : (
+                    <p className='text-gray-600'>{currentProfile?.comfortableAreas || '-'}</p>
+                  )}
+                </div>
+
+                {/* Travel Cities */}
+                <div className='md:col-span-2'>
+                  <label className='text-sm font-medium text-gray-700 block mb-1'>Willing to Travel To</label>
+                  {isEditing ? (
+                    <input
+                      type='text'
+                      value={currentProfile?.travelCities || ''}
+                      onChange={(e) => handleInputChange('travelCities', e.target.value)}
+                      placeholder='e.g., Mumbai, Delhi, Bangalore'
+                      className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                    />
+                  ) : currentProfile?.travelCities ? (
+                    <div className='flex flex-wrap gap-2'>
+                      {currentProfile.travelCities.split(',').map((city, i) => (
+                        <span key={i} className='bg-blue-50 text-blue-700 text-xs px-2.5 py-1 rounded-full'>{city.trim()}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className='text-gray-600'>-</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Artist Type Specific Details */}
+            {renderDynamicDetails()}
+
+            {/* Portfolio URLs */}
+            <div className='bg-white rounded-xl p-6 shadow-sm'>
+              <h3 className='text-lg font-semibold text-gray-800 mb-4'>Portfolio Links</h3>
+              {isEditing ? (
+                <div className='space-y-3'>
+                  {(currentProfile?.portfolioUrls ?? []).map((url, i) => (
+                    <div key={i} className='flex gap-2'>
+                      <input
+                        type='url'
+                        value={url}
+                        onChange={(e) => {
+                          const updated = [...(editedProfile?.portfolioUrls ?? [])]
+                          updated[i] = e.target.value
+                          handleInputChange('portfolioUrls', updated)
+                        }}
+                        placeholder='https://...'
+                        className='flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm'
+                      />
+                      <button
+                        type='button'
+                        onClick={() => {
+                          const updated = (editedProfile?.portfolioUrls ?? []).filter((_, idx) => idx !== i)
+                          handleInputChange('portfolioUrls', updated)
+                        }}
+                        className='p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors'
+                      >
+                        <Icon name='Trash2' size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type='button'
+                    onClick={() => handleInputChange('portfolioUrls', [...(editedProfile?.portfolioUrls ?? []), ''])}
+                    className='flex items-center gap-2 text-amber-600 hover:text-amber-700 text-sm font-medium'
+                  >
+                    <Icon name='Plus' size={16} />
+                    Add Portfolio Link
+                  </button>
+                </div>
+              ) : (currentProfile?.portfolioUrls?.length ?? 0) > 0 ? (
+                <div className='space-y-2'>
+                  {currentProfile!.portfolioUrls!.map((url, i) => (
+                    <a
+                      key={i}
+                      href={url}
+                      target='_blank'
+                      rel='noopener noreferrer'
+                      className='flex items-center gap-2 text-amber-600 hover:underline text-sm truncate'
+                    >
+                      <Icon name='ExternalLink' size={14} />
+                      {url}
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p className='text-gray-500 text-sm'>No portfolio links added yet.</p>
+              )}
+            </div>
+
+            {/* Profile Video */}
+            <div className='bg-white rounded-xl p-6 shadow-sm'>
+              <h3 className='text-lg font-semibold text-gray-800 mb-4'>Profile Video</h3>
+              {isEditing ? (
+                <div className='space-y-4'>
+                  <VideoUpload
+                    currentVideoUrl={currentProfile?.videoUrl}
+                    uploadType="AUDITION_VIDEO"
+                    label="Upload Profile Video"
+                    description="Introduction or showreel video (max 100MB)"
+                    onUploadSuccess={(fileUrl) => handleInputChange('videoUrl', fileUrl)}
+                    maxSizeMB={100}
+                  />
+                  <div className='text-center text-gray-500 text-sm'>OR</div>
+                  <div>
+                    <label className='text-xs font-medium text-gray-500'>YouTube / Vimeo URL</label>
+                    <input
+                      type='url'
+                      value={currentProfile?.videoUrl || ''}
+                      onChange={(e) => handleInputChange('videoUrl', e.target.value)}
+                      placeholder='https://youtube.com/watch?v=...'
+                      className='w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                    />
+                  </div>
+                </div>
+              ) : currentProfile?.videoUrl ? (
+                currentProfile.videoUrl.includes('youtube.com') || currentProfile.videoUrl.includes('youtu.be') || currentProfile.videoUrl.includes('vimeo.com') ? (
+                  <iframe
+                    src={currentProfile.videoUrl}
+                    className='w-full h-64 rounded-lg'
+                    title='Profile Video'
+                    allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture'
+                    allowFullScreen
+                  />
+                ) : (
+                  <video src={currentProfile.videoUrl} controls className='w-full rounded-lg' />
+                )
+              ) : (
+                <p className='text-gray-500 text-sm'>No profile video added yet.</p>
+              )}
+            </div>
+
+            {/* Documents Section */}
+            <div className='bg-white rounded-xl p-6 shadow-sm'>
+              <h3 className='text-lg font-semibold text-gray-800 mb-4'>Documents</h3>
+              <div className='space-y-4'>
+                <div className='flex items-center justify-between p-3 border border-gray-200 rounded-lg'>
+                  <div className='flex items-center gap-3'>
+                    <div className='p-2 bg-gray-100 rounded-lg text-gray-600'>
+                      <Icon name='FileText' size={20} />
+                    </div>
+                    <div>
+                      <p className='text-sm font-medium text-gray-900'>ID Proof</p>
+                      <p className='text-xs text-gray-500'>Uploaded on 15 Aug 2023</p>
+                    </div>
+                  </div>
+                  <button className='text-amber-600 hover:text-amber-700 text-sm font-medium'>
+                    View
+                  </button>
+                </div>
+
+                {profile.category?.toLowerCase() === 'dancer' && profile.danceVideo && (
+                  <div className='flex items-center justify-between p-3 border border-gray-200 rounded-lg'>
+                    <div className='flex items-center gap-3'>
+                      <div className='p-2 bg-gray-100 rounded-lg text-gray-600'>
+                        <Icon name='Film' size={20} />
+                      </div>
+                      <div>
+                        <p className='text-sm font-medium text-gray-900'>Dance Showreel</p>
+                        <p className='text-xs text-gray-500'>YouTube Link</p>
+                      </div>
+                    </div>
+                    <a
+                      href={profile.danceVideo}
+                      target='_blank'
+                      rel='noopener noreferrer'
+                      className='text-amber-600 hover:text-amber-700 text-sm font-medium'
+                    >
+                      Watch
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Face Verification Modal */}
+      {isFaceModalOpen && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4'>
+          <div className='bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden'>
+            {/* Header */}
+            <div className='flex items-center justify-between px-6 py-4 border-b border-gray-100'>
+              <div className='flex items-center gap-2'>
+                <Icon name='Camera' size={20} className='text-amber-500' />
+                <h3 className='text-lg font-semibold text-gray-900'>Face Verification</h3>
+              </div>
+              <button onClick={closeFaceModal} className='text-gray-400 hover:text-gray-600'>
+                <Icon name='X' size={20} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className='p-6'>
+              {cameraError ? (
+                <div className='flex flex-col items-center gap-4 py-6 text-center'>
+                  <div className='p-4 bg-red-100 rounded-full'>
+                    <Icon name='CameraOff' size={32} className='text-red-500' />
+                  </div>
+                  <p className='text-sm text-red-600'>{cameraError}</p>
+                  <button
+                    onClick={retakePhoto}
+                    className='px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-lg transition-colors'>
+                    Try Again
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Camera / Preview */}
+                  <div className='relative bg-black rounded-xl overflow-hidden mb-4' style={{ aspectRatio: '4/3' }}>
+                    {!capturedImage ? (
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className='w-full h-full object-cover'
+                      />
+                    ) : (
+                      <img src={capturedImage} alt='Captured' className='w-full h-full object-cover' />
+                    )}
+                    {/* Face guide overlay */}
+                    {!capturedImage && (
+                      <div className='absolute inset-0 flex items-center justify-center pointer-events-none'>
+                        <div className='w-48 h-56 border-4 border-amber-400 rounded-full opacity-60' />
+                      </div>
+                    )}
+                    {faceVerifyStatus === 'submitted' && (
+                      <div className='absolute inset-0 bg-green-500/80 flex items-center justify-center'>
+                        <Icon name='CheckCircle' size={64} className='text-white' />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Hidden canvas for capture */}
+                  <canvas ref={canvasRef} className='hidden' />
+
+                  {/* Instructions */}
+                  {!capturedImage && (
+                    <p className='text-xs text-gray-500 text-center mb-4'>
+                      Center your face in the oval. Make sure your face is well-lit and clearly visible.
+                    </p>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className='flex gap-3 justify-center'>
+                    {faceVerifyStatus === 'idle' && (
+                      <button
+                        onClick={capturePhoto}
+                        className='flex items-center gap-2 px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition-colors'>
+                        <Icon name='Camera' size={18} />
+                        Capture Photo
+                      </button>
+                    )}
+
+                    {faceVerifyStatus === 'captured' && (
+                      <>
+                        <button
+                          onClick={retakePhoto}
+                          className='flex items-center gap-2 px-5 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors'>
+                          <Icon name='RefreshCw' size={16} />
+                          Retake
+                        </button>
+                        <button
+                          onClick={handleSubmitFaceVerification}
+                          className='flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition-colors'>
+                          <Icon name='Send' size={16} />
+                          Submit
+                        </button>
+                      </>
+                    )}
+
+                    {faceVerifyStatus === 'uploading' && (
+                      <div className='flex items-center gap-2 text-amber-600'>
+                        <div className='animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-amber-500' />
+                        <span className='text-sm font-medium'>Submitting...</span>
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
             </div>
           </div>
         </div>
-      </div>
-    </div>
-
-    {/* Face Verification Modal */}
-    {isFaceModalOpen && (
-      <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4'>
-        <div className='bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden'>
-          {/* Header */}
-          <div className='flex items-center justify-between px-6 py-4 border-b border-gray-100'>
-            <div className='flex items-center gap-2'>
-              <Icon name='Camera' size={20} className='text-amber-500' />
-              <h3 className='text-lg font-semibold text-gray-900'>Face Verification</h3>
-            </div>
-            <button onClick={closeFaceModal} className='text-gray-400 hover:text-gray-600'>
-              <Icon name='X' size={20} />
-            </button>
-          </div>
-
-          {/* Body */}
-          <div className='p-6'>
-            {cameraError ? (
-              <div className='flex flex-col items-center gap-4 py-6 text-center'>
-                <div className='p-4 bg-red-100 rounded-full'>
-                  <Icon name='CameraOff' size={32} className='text-red-500' />
-                </div>
-                <p className='text-sm text-red-600'>{cameraError}</p>
-                <button
-                  onClick={retakePhoto}
-                  className='px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-lg transition-colors'>
-                  Try Again
-                </button>
-              </div>
-            ) : (
-              <>
-                {/* Camera / Preview */}
-                <div className='relative bg-black rounded-xl overflow-hidden mb-4' style={{ aspectRatio: '4/3' }}>
-                  {!capturedImage ? (
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      className='w-full h-full object-cover'
-                    />
-                  ) : (
-                    <img src={capturedImage} alt='Captured' className='w-full h-full object-cover' />
-                  )}
-                  {/* Face guide overlay */}
-                  {!capturedImage && (
-                    <div className='absolute inset-0 flex items-center justify-center pointer-events-none'>
-                      <div className='w-48 h-56 border-4 border-amber-400 rounded-full opacity-60' />
-                    </div>
-                  )}
-                  {faceVerifyStatus === 'submitted' && (
-                    <div className='absolute inset-0 bg-green-500/80 flex items-center justify-center'>
-                      <Icon name='CheckCircle' size={64} className='text-white' />
-                    </div>
-                  )}
-                </div>
-
-                {/* Hidden canvas for capture */}
-                <canvas ref={canvasRef} className='hidden' />
-
-                {/* Instructions */}
-                {!capturedImage && (
-                  <p className='text-xs text-gray-500 text-center mb-4'>
-                    Center your face in the oval. Make sure your face is well-lit and clearly visible.
-                  </p>
-                )}
-
-                {/* Action Buttons */}
-                <div className='flex gap-3 justify-center'>
-                  {faceVerifyStatus === 'idle' && (
-                    <button
-                      onClick={capturePhoto}
-                      className='flex items-center gap-2 px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition-colors'>
-                      <Icon name='Camera' size={18} />
-                      Capture Photo
-                    </button>
-                  )}
-
-                  {faceVerifyStatus === 'captured' && (
-                    <>
-                      <button
-                        onClick={retakePhoto}
-                        className='flex items-center gap-2 px-5 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors'>
-                        <Icon name='RefreshCw' size={16} />
-                        Retake
-                      </button>
-                      <button
-                        onClick={handleSubmitFaceVerification}
-                        className='flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition-colors'>
-                        <Icon name='Send' size={16} />
-                        Submit
-                      </button>
-                    </>
-                  )}
-
-                  {faceVerifyStatus === 'uploading' && (
-                    <div className='flex items-center gap-2 text-amber-600'>
-                      <div className='animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-amber-500' />
-                      <span className='text-sm font-medium'>Submitting...</span>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    )}
+      )}
     </>
   )
 }
