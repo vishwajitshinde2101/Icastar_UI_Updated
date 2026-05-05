@@ -28,6 +28,7 @@ import {
 } from '../../components/icons/IconComponents'
 import artistDashboardService from '../../services/artistDashboardService'
 import { toast } from 'react-toastify'
+import ApplyJobModal from '../../components/ApplyJobModal'
 
 export const ArtistDashboard = () => {
   const navigate = useNavigate()
@@ -43,6 +44,8 @@ export const ArtistDashboard = () => {
   const [recentActivities, setRecentActivities] = useState<any[]>([])
   const [portfolioItems, setPortfolioItems] = useState<any[]>([])
   const [profileCompletion, setProfileCompletion] = useState(0)
+  const [applyOpen, setApplyOpen] = useState(false)
+  const [selectedJob, setSelectedJob] = useState<{ id: number | undefined; title: string } | null>(null)
 
   // Fetch all dashboard data on mount
   useEffect(() => {
@@ -343,8 +346,8 @@ export const ArtistDashboard = () => {
                 key={days}
                 onClick={() => setTimeFilter(days)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${timeFilter === days
-                    ? 'bg-purple-600 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}>
                 {days} days
               </button>
@@ -489,7 +492,10 @@ export const ArtistDashboard = () => {
                       <span>•</span>
                       <span>{job?.location || 'N/A'}</span>
                     </div>
-                    <button className='w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm'>
+                    <button
+                      type='button'
+                      onClick={(e: React.MouseEvent) => { e.stopPropagation(); const resolvedId = job.id ?? job.jobId ?? job.job_id; setSelectedJob({ id: resolvedId, title: job.title || 'Untitled Job' }); setApplyOpen(true) }}
+                      className='w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm'>
                       Apply Now
                     </button>
                   </div>
@@ -597,6 +603,13 @@ export const ArtistDashboard = () => {
           )}
         </div>
       </Card>
+
+      <ApplyJobModal
+        open={applyOpen}
+        onOpenChange={setApplyOpen}
+        jobId={selectedJob?.id ?? null}
+        jobTitle={selectedJob?.title}
+      />
     </div>
   )
 }
