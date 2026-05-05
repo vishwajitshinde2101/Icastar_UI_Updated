@@ -87,6 +87,7 @@ const Profile: React.FC = () => {
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [localFaceVerified, setLocalFaceVerified] = useState(false)
   const [skillInput, setSkillInput] = useState('')
+  const [areaInput, setAreaInput] = useState('')
   const videoRef = useRef<HTMLVideoElement>(null)
 
   const parseSkillsArray = (val?: string): string[] => {
@@ -861,6 +862,20 @@ const Profile: React.FC = () => {
     handleInputChange('skills', updated)
   }
 
+  const handleAddArea = (area: string) => {
+    const trimmed = area.trim()
+    if (!trimmed) return
+    const existing = parseSkillsArray(currentProfile?.comfortableAreas)
+    if (existing.map(s => s.toLowerCase()).includes(trimmed.toLowerCase())) return
+    handleInputChange('comfortableAreas', [...existing, trimmed].join(', '))
+    setAreaInput('')
+  }
+
+  const handleRemoveArea = (area: string) => {
+    const updated = parseSkillsArray(currentProfile?.comfortableAreas).filter(s => s !== area).join(', ')
+    handleInputChange('comfortableAreas', updated)
+  }
+
   // Calculate profile completion percentage
   const calculateProfileCompletion = () => {
     // Helper to check if a value is filled (handles strings, numbers, and arrays)
@@ -873,11 +888,22 @@ const Profile: React.FC = () => {
     }
 
     // Helper to format display value
-    const formatDisplayValue = (value: any): string => {
+    const formatDisplayValue = (value: any, key?: string): string => {
       if (value === null || value === undefined) return ''
-      if (typeof value === 'string') return value.length > 20 ? value.substring(0, 20) + '...' : value
+      if (key === 'hourlyRate') return value ? `₹${value}/hr` : ''
       if (typeof value === 'number') return String(value)
-      if (Array.isArray(value)) return value.join(', ')
+      if (Array.isArray(value)) {
+        const joined = value.join(', ')
+        return joined.length > 25 ? joined.substring(0, 25) + '...' : joined
+      }
+      if (typeof value === 'string') {
+        const parsed = parseSkillsArray(value)
+        if (parsed.length > 0) {
+          const joined = parsed.join(', ')
+          return joined.length > 25 ? joined.substring(0, 25) + '...' : joined
+        }
+        return value.length > 25 ? value.substring(0, 25) + '...' : value
+      }
       return String(value)
     }
 
@@ -894,7 +920,6 @@ const Profile: React.FC = () => {
     const fieldsList = [
       { key: 'firstName', label: 'First Name', value: profile.firstName },
       { key: 'lastName', label: 'Last Name', value: profile.lastName },
-      { key: 'stageName', label: 'Stage Name', value: profile.stageName },
       { key: 'email', label: 'Email', value: profile.email },
       { key: 'phone', label: 'Phone', value: profile.phone },
       { key: 'city', label: 'City', value: profile.city },
@@ -928,7 +953,7 @@ const Profile: React.FC = () => {
       label: f.label,
       value: f.value,
       isFilled: isFilled(f.value),
-      displayValue: formatDisplayValue(f.value)
+      displayValue: formatDisplayValue(f.value, f.key)
     }))
 
     const filledCount = fieldsWithStatus.filter(f => f.isFilled).length
@@ -1040,15 +1065,6 @@ const Profile: React.FC = () => {
                       type='text'
                       value={currentProfile?.city || ''}
                       onChange={(e) => handleInputChange('city', e.target.value)}
-                      className='w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                    />
-                  </div>
-                  <div>
-                    <label className='text-xs font-medium text-gray-500'>Stage Name (Optional)</label>
-                    <input
-                      type='text'
-                      value={currentProfile?.stageName || ''}
-                      onChange={(e) => handleInputChange('stageName', e.target.value)}
                       className='w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent'
                     />
                   </div>
@@ -1644,13 +1660,40 @@ const Profile: React.FC = () => {
                 <div>
                   <label className='text-sm font-medium text-gray-700 block mb-1'>Comfortable Areas</label>
                   {isEditing ? (
-                    <input
-                      type='text'
-                      value={parseSkillsArray(currentProfile?.comfortableAreas).join(', ')}
-                      onChange={(e) => handleInputChange('comfortableAreas', e.target.value)}
-                      placeholder='e.g., Drama, Romance, Action'
-                      className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-                    />
+                    <div className='space-y-2'>
+                      <div className='flex flex-wrap gap-2 min-h-[44px] p-2 border border-gray-300 rounded-lg bg-white focus-within:ring-2 focus-within:ring-amber-500 focus-within:border-transparent'>
+                        {parseSkillsArray(currentProfile?.comfortableAreas).map(area => (
+                          <span key={area} className='inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-700 font-medium'>
+                            {area}
+                            <button
+                              type='button'
+                              onClick={() => handleRemoveArea(area)}
+                              className='text-purple-400 hover:text-red-600 font-bold leading-none ml-0.5'>
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                        <input
+                          type='text'
+                          value={areaInput}
+                          onChange={e => setAreaInput(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' || e.key === ',') {
+                              e.preventDefault()
+                              handleAddArea(areaInput)
+                            }
+                            if (e.key === 'Backspace' && !areaInput) {
+                              const areas = parseSkillsArray(currentProfile?.comfortableAreas)
+                              if (areas.length > 0) handleRemoveArea(areas[areas.length - 1])
+                            }
+                          }}
+                          onBlur={() => { if (areaInput.trim()) handleAddArea(areaInput) }}
+                          placeholder={parseSkillsArray(currentProfile?.comfortableAreas).length === 0 ? 'Type area & press Enter' : 'Add more...'}
+                          className='flex-1 min-w-[120px] outline-none text-sm text-gray-700 bg-transparent py-1'
+                        />
+                      </div>
+                      <p className='text-xs text-gray-400'>Press Enter or comma to add an area</p>
+                    </div>
                   ) : (
                     <div className='flex flex-wrap gap-2'>
                       {parseSkillsArray(currentProfile?.comfortableAreas).length > 0

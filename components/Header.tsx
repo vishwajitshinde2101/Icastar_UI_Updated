@@ -10,6 +10,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import userService from '@/services/userService'
+import artistService from '@/services/artistService'
 const initialRecruiterData: Recruiter = {
   name: 'Alex Morgan',
   title: 'Recruiter',
@@ -30,6 +31,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const navigate = useNavigate()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [userProfile, setUserProfile] = useState<any>(null)
+  const [artistPhoto, setArtistPhoto] = useState<string | null>(null)
 
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -45,6 +47,15 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         // Then fetch fresh data from API
         const u = await userService.getCurrentUser()
         setUserProfile(u)
+
+        // Fetch artist profile photo if role is artist
+        const role = localStorage.getItem('role')
+        if (role === 'ARTIST') {
+          try {
+            const artistProfile = await artistService.getMyProfile()
+            if (artistProfile?.profilePhoto) setArtistPhoto(artistProfile.profilePhoto)
+          } catch {}
+        }
       } catch (e) {
         // console.error("Failed to fetch user profile", e)
       }
@@ -97,11 +108,17 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
             className='flex items-center space-x-3 cursor-pointer p-1 rounded-lg hover:bg-gray-100 transition-colors'
             aria-expanded={isDropdownOpen}
             aria-haspopup='true'>
-            <img
-              className='h-10 w-10 rounded-full object-cover'
-              src={userProfile?.avatarUrl || initialRecruiterData.avatarUrl}
-              alt='User avatar'
-            />
+            {artistPhoto || userProfile?.avatarUrl || userProfile?.profilePicture ? (
+              <img
+                className='h-10 w-10 rounded-full object-cover'
+                src={artistPhoto || userProfile?.avatarUrl || userProfile?.profilePicture}
+                alt='User avatar'
+              />
+            ) : (
+              <div className='h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center'>
+                <UserCircleIcon className='h-7 w-7 text-amber-500' />
+              </div>
+            )}
             <div className='hidden md:block text-left'>
               <p className='text-sm font-bold text-gray-800'>
                 {displayName}
