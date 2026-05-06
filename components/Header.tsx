@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import userService from '@/services/userService'
 import artistService from '@/services/artistService'
+import { getRecruiterProfile } from '@/services/recruiterProfileService'
 const initialRecruiterData: Recruiter = {
   name: 'Alex Morgan',
   title: 'Recruiter',
@@ -32,23 +33,19 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [userProfile, setUserProfile] = useState<any>(null)
   const [artistPhoto, setArtistPhoto] = useState<string | null>(null)
+  const [recruiterPhoto, setRecruiterPhoto] = useState<string | null>(null)
 
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        // First try to check local storage for immediate render
         const stored = userService.getStoredUser()
-        if (stored) {
-          setUserProfile((prev: any) => prev || stored)
-        }
+        if (stored) setUserProfile((prev: any) => prev || stored)
 
-        // Then fetch fresh data from API
         const u = await userService.getCurrentUser()
         setUserProfile(u)
 
-        // Fetch artist profile photo if role is artist
         const role = localStorage.getItem('role')
         if (role === 'ARTIST') {
           try {
@@ -56,11 +53,23 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
             if (artistProfile?.profilePhoto) setArtistPhoto(artistProfile.profilePhoto)
           } catch {}
         }
-      } catch (e) {
-        // console.error("Failed to fetch user profile", e)
-      }
+        if (role === 'RECRUITER') {
+          try {
+            const recruiterProfile = await getRecruiterProfile()
+            if (recruiterProfile?.avatarUrl) setRecruiterPhoto(recruiterProfile.avatarUrl)
+          } catch {}
+        }
+      } catch (e) {}
     }
     fetchUser()
+
+    // Listen for photo update from RecruiterProfilePage
+    const handlePhotoUpdate = (e: Event) => {
+      const url = (e as CustomEvent<{ url: string }>).detail?.url
+      if (url) setRecruiterPhoto(url)
+    }
+    window.addEventListener('recruiter-photo-updated', handlePhotoUpdate)
+    return () => window.removeEventListener('recruiter-photo-updated', handlePhotoUpdate)
   }, [])
 
   useEffect(() => {
@@ -108,10 +117,10 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
             className='flex items-center space-x-3 cursor-pointer p-1 rounded-lg hover:bg-gray-100 transition-colors'
             aria-expanded={isDropdownOpen}
             aria-haspopup='true'>
-            {artistPhoto || userProfile?.avatarUrl || userProfile?.profilePicture ? (
+            {recruiterPhoto || artistPhoto || userProfile?.avatarUrl || userProfile?.profilePicture ? (
               <img
                 className='h-10 w-10 rounded-full object-cover'
-                src={artistPhoto || userProfile?.avatarUrl || userProfile?.profilePicture}
+                src={recruiterPhoto || artistPhoto || userProfile?.avatarUrl || userProfile?.profilePicture}
                 alt='User avatar'
               />
             ) : (

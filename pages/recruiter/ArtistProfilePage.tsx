@@ -585,17 +585,17 @@ export const ArtistProfilePage = () => {
                   {artist.hourlyRate != null && (
                     <div>
                       <p className='text-xs text-gray-500 mb-0.5'>Hourly Rate</p>
-                      <p className='font-medium text-gray-800'>{artist.currency || ''} {artist.hourlyRate.toLocaleString()}/hr</p>
+                      <p className='font-medium text-gray-800'>₹ {artist.hourlyRate.toLocaleString('en-IN')}/hr</p>
                     </div>
                   )}
                   {(artist.expectedSalaryMin != null || artist.expectedSalaryMax != null) && (
                     <div>
                       <p className='text-xs text-gray-500 mb-0.5'>Expected Salary</p>
                       <p className='font-medium text-gray-800'>
-                        {artist.currency || ''}{' '}
-                        {artist.expectedSalaryMin != null ? artist.expectedSalaryMin.toLocaleString() : ''}
+                        ₹{' '}
+                        {artist.expectedSalaryMin != null ? artist.expectedSalaryMin.toLocaleString('en-IN') : ''}
                         {artist.expectedSalaryMin != null && artist.expectedSalaryMax != null ? ' – ' : ''}
-                        {artist.expectedSalaryMax != null ? artist.expectedSalaryMax.toLocaleString() : ''}
+                        {artist.expectedSalaryMax != null ? artist.expectedSalaryMax.toLocaleString('en-IN') : ''}
                       </p>
                     </div>
                   )}

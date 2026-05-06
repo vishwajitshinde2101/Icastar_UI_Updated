@@ -14,6 +14,7 @@ export interface RecruiterProfileDto {
   companyWebsite?: string;
   companyDescription?: string;
   companyLogoUrl?: string;
+  profilePhotoUrl?: string;
   industry?: string;
   companySize?: string;
   location?: string;
@@ -29,7 +30,7 @@ function mapDtoToRecruiter(dto: RecruiterProfileDto): Recruiter {
   const name = dto.contactPersonName || [dto.firstName, dto.lastName].filter(Boolean).join(' ').trim() || '—';
   const title = dto.designation || '';
   const email = dto.email || '';
-  const avatarUrl = dto.companyLogoUrl || '';
+  const avatarUrl = dto.profilePhotoUrl || dto.companyLogoUrl || '';
   const companyName = dto.companyName || '';
   const companyWebsite = dto.companyWebsite || '';
   const companyBio = dto.companyDescription || '';

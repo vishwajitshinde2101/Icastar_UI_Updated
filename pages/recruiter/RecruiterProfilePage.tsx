@@ -181,8 +181,14 @@ export const RecruiterProfilePage = () => {
       setIsUploading(true)
       setUploadProgress(0)
       const fileUrl = await uploadService.uploadFile(file, 'PROFILE_PHOTO', setUploadProgress)
+
+      // Immediately save the new photo to the backend
+      const updated = await updateRecruiterProfile({ profilePhotoUrl: fileUrl })
+      setRecruiter(updated)
       setFormData(prev => ({ ...prev, avatarUrl: fileUrl }))
-      toast.success('Photo uploaded! Click Save Changes to save.')
+      // Notify header to update avatar instantly
+      window.dispatchEvent(new CustomEvent('recruiter-photo-updated', { detail: { url: fileUrl } }))
+      toast.success('Profile photo updated!')
     } catch (err: any) {
       toast.error('Failed to upload photo. Please try again.')
     } finally {
@@ -199,17 +205,21 @@ export const RecruiterProfilePage = () => {
   const handleSave = async () => {
     try {
       setLoading(true)
-      const updated = await updateRecruiterProfile({
+      await updateRecruiterProfile({
         contactPersonName: formData.name,
         designation: formData.title,
         email: formData.email,
         companyName: formData.companyName,
         companyWebsite: formData.companyWebsite,
         companyDescription: formData.companyBio,
-        companyLogoUrl: formData.avatarUrl,
+        profilePhotoUrl: formData.avatarUrl,
       })
-      setRecruiter(updated)
-      setFormData(updated)
+      // Re-fetch profile to get the latest saved data from backend
+      const latest = await getRecruiterProfile()
+      // Preserve avatarUrl if backend doesn't echo it back
+      const merged = { ...latest, avatarUrl: latest.avatarUrl || formData.avatarUrl }
+      setRecruiter(merged)
+      setFormData(merged)
       toast.success('Profile saved successfully!')
     } catch (err: any) {
       toast.error(err?.message || 'Failed to save profile')
