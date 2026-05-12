@@ -1,54 +1,89 @@
-
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="apple-touch-icon" href="/favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>iCastar | Best Talent Hunting Platform</title>
-    <meta name="description" content="iCastar is the best talent hunting platform for recruiters and casting directors. Discover, hire and manage artists effortlessly — from initial selection to final hiring." />
-    <meta name="keywords" content="talent hunting, casting platform, hire artists, recruiter, casting director, icastar" />
-    <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://www.icastar.com" />
-    <!-- Open Graph (Google / Social preview) -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://www.icastar.com" />
-    <meta property="og:title" content="iCastar | Best Talent Hunting Platform" />
-    <meta property="og:description" content="iCastar is the best talent hunting platform for recruiters and casting directors. Discover, hire and manage artists effortlessly." />
-    <meta property="og:image" content="https://www.icastar.com/favicon.png" />
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="iCastar | Best Talent Hunting Platform" />
-    <meta name="twitter:description" content="Discover, hire and manage artists effortlessly — iCastar simplifies the entire workflow for recruiters and casting directors." />
-    <meta name="twitter:image" content="https://www.icastar.com/favicon.png" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
+
+<head>
+  <meta charset="UTF-8" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/favicon.png" />
+
+  <!-- Mobile Responsive -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Primary SEO -->
+  <title>iCastar | Best Talent Hunting Platform</title>
+
+  <meta name="description"
+    content="iCastar is the best talent hunting platform for recruiters and casting directors. Discover, hire and manage artists effortlessly — from initial selection to final hiring." />
+
+  <meta name="keywords"
+    content="iCastar, talent hunting platform, casting platform, hire artists, recruiters, casting directors, artist management" />
+
+  <meta name="robots" content="index, follow" />
+
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://www.icastar.com/" />
+
+  <!-- Theme Color -->
+  <meta name="theme-color" content="#F15A25" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.icastar.com/" />
+  <meta property="og:title" content="iCastar | Best Talent Hunting Platform" />
+
+  <meta property="og:description"
+    content="Discover, hire and manage artists effortlessly with iCastar — the complete talent hunting platform for recruiters and casting directors." />
+
+  <meta property="og:image" content="https://www.icastar.com/favicon.png" />
+
+  <meta property="og:site_name" content="iCastar" />
+
+  <!-- Twitter SEO -->
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <meta name="twitter:title" content="iCastar | Best Talent Hunting Platform" />
+
+  <meta name="twitter:description" content="Discover, hire and manage artists effortlessly with iCastar." />
+
+  <meta name="twitter:image" content="https://www.icastar.com/favicon.png" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            primary: {
+              DEFAULT: '#F15A25',
+              hover: '#f13825',
+              light: '#f5aa5c'
             },
-            colors: {
-              primary: {
-                DEFAULT: '#F15A25', // purple-500
-                hover: '#f13825',   // purple-600
-                light: '#f5aa5c'    // purple-100
-              },
-              secondary: {
-                DEFAULT: '#F59E0B', // amber-500
-                hover: '#D97706',   // amber-600
-              },
-              'base-bg': '#FAF5FF', // purple-50
+            secondary: {
+              DEFAULT: '#F59E0B',
+              hover: '#D97706',
             },
-          }
+            'base-bg': '#FAF5FF',
+          },
         }
       }
-    </script>
+    }
+  </script>
+
+  <!-- Import Map -->
   <script type="importmap">
 {
   "imports": {
@@ -60,10 +95,22 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
+
+  <!-- Main CSS -->
+  <link rel="stylesheet" href="/index.css" />
 </head>
-  <body class="bg-base-bg antialiased">
-    <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
-  </body>
+
+<body class="bg-base-bg antialiased">
+
+  <!-- SEO Heading -->
+  <h1 style="display: none;">
+    iCastar - Best Talent Hunting Platform
+  </h1>
+
+  <div id="root"></div>
+
+  <script type="module" src="/index.tsx"></script>
+
+</body>
+
 </html>
