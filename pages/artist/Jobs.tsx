@@ -260,7 +260,7 @@ const Jobs: React.FC = () => {
           return {
             id: j.id,
             title: j.title ?? 'Untitled Role',
-            company: (j.companyName as string) || (j.company as string) || 'Top Company', // Fallbacks
+            company: (j.companyName as string) || (j.company as string) || (j.recruiterCompanyName as string) || (j.organizationName as string) || (j.posterCompany as string) || undefined,
             location: (j.location as string),
             isRemote: j.isRemote,
             jobType: j.jobType,
