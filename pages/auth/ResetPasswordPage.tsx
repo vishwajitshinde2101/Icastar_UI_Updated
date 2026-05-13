@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import React, { useState, useEffect, type FormEvent } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,6 +8,22 @@ import { ArrowLeft, Eye, EyeOff, Loader2, CheckCircle, AlertTriangle } from 'luc
 import heroBg from '@/assets/hero-stage.jpg'
 
 const BASE_URL = 'https://app.icastar.com/api'
+
+const bgStyle = {
+  backgroundImage: `url(${heroBg})`,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  backgroundRepeat: 'no-repeat',
+}
+
+const Wrapper = ({ children }: { children: React.ReactNode }) => (
+  <div className="min-h-screen flex items-center justify-center relative overflow-hidden" style={bgStyle}>
+    <div className="absolute inset-0 bg-gradient-to-br from-neutral-950 via-neutral-900 to-black opacity-90" />
+    <div className="absolute top-20 left-20 w-32 h-32 bg-gradient-to-r from-orange-500/10 to-amber-500/10 rounded-full blur-xl" />
+    <div className="absolute bottom-20 right-20 w-40 h-40 bg-gradient-to-r from-amber-500/10 to-yellow-500/10 rounded-full blur-xl" />
+    <div className="relative z-10 w-full max-w-md px-4 py-8">{children}</div>
+  </div>
+)
 
 const ResetPasswordPage = () => {
   const [searchParams] = useSearchParams()
