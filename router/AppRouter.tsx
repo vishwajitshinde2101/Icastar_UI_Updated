@@ -28,7 +28,7 @@ import Applications from '@/pages/artist/Applications'
 import Messages from '@/pages/artist/Messages'
 import ProfileIndex from '@/pages/ProfileIndex'
 import ArtistRegistrationForm from '@/pages/artist/ArtistRegistrationForm'
-// import PublicArtistProfilePage from '@/pages/public/PublicArtistProfilePage'
+import PublicArtistProfilePage from '@/pages/public/PublicArtistProfilePage'
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
 import ResetPasswordPage from '@/pages/auth/ResetPasswordPage'
 
@@ -66,10 +66,10 @@ const AppRouter = () =>
           path: '/reset-password',
           element: <ResetPasswordPage />,
         },
-        // {
-        //   path: '/:userId/profile',
-        //   element: <PublicArtistProfilePage />,
-        // },
+        {
+          path: '/:userId/profile',
+          element: <PublicArtistProfilePage />,
+        },
       ],
     },
     // Protected routes (dashboard)

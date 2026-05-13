@@ -74,6 +74,7 @@ interface ArtistProfile {
 
 const Profile: React.FC = () => {
   const [profile, setProfile] = useState<ArtistProfile | null>(null)
+  const [userId, setUserId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [editedProfile, setEditedProfile] = useState<ArtistProfile | null>(null)
@@ -124,6 +125,7 @@ const Profile: React.FC = () => {
         setProfile(null)
         return
       }
+      if (data.userId) setUserId(data.userId)
       // Calculate age from dateOfBirth
       const calculateAge = (dob: string | undefined): number | undefined => {
         if (!dob) return undefined
@@ -1010,6 +1012,20 @@ const Profile: React.FC = () => {
                   <Icon name='Share2' size={16} />
                   Share Profile
                 </button>
+                {userId && (
+                  <button
+                    onClick={() => {
+                      const link = `${window.location.origin}/${userId}/profile`
+                      navigator.clipboard.writeText(link)
+                        .then(() => toast.success('Profile link copied!'))
+                        .catch(() => toast.error('Could not copy link'))
+                    }}
+                    className='flex items-center gap-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg transition-colors'
+                  >
+                    <Icon name='Link' size={16} />
+                    Copy Link
+                  </button>
+                )}
                 <button
                   onClick={handleEditProfile}
                   className='flex items-center gap-2 bg-white border border-amber-600 text-amber-600 hover:bg-amber-50 px-4 py-2 rounded-lg transition-colors'

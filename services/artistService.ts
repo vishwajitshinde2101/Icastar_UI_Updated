@@ -81,7 +81,7 @@ export const artistService = {
     // Map API response to ArtistProfile
     return {
       id: responseData.artistProfileId ?? responseData.id,
-      oderId: responseData.userId,
+      userId: responseData.userId,
       firstName: responseData.firstName,
       lastName: responseData.lastName,
       fullName: responseData.firstName && responseData.lastName
